@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>currentDocument</key>
+	<string>adsbibdesk.py</string>
+	<key>documents</key>
+	<array>
+		<dict>
+			<key>filename</key>
+			<string>adsbibdesk.applescript</string>
+			<key>lastUsed</key>
+			<date>2010-07-29T14:23:29Z</date>
+		</dict>
+		<dict>
+			<key>filename</key>
+			<string>adsbibdesk.py</string>
+			<key>lastUsed</key>
+			<date>2010-07-29T14:23:29Z</date>
+			<key>selected</key>
+			<true/>
+		</dict>
+	</array>
+	<key>fileHierarchyDrawerWidth</key>
+	<integer>200</integer>
+	<key>metaData</key>
+	<dict>
+		<key>adsbibdesk.applescript</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>83</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>11</integer>
+		</dict>
+		<key>adsbibdesk.py</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>263</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>192</integer>
+		</dict>
+	</dict>
+	<key>openDocuments</key>
+	<array>
+		<string>adsbibdesk.applescript</string>
+		<string>adsbibdesk.py</string>
+	</array>
+	<key>showFileHierarchyDrawer</key>
+	<true/>
+	<key>treeState</key>
+	<dict/>
+	<key>windowFrame</key>
+	<string>{{61, 8}, {737, 1170}}</string>
+</dict>
+</plist>

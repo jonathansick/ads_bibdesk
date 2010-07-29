@@ -1,0 +1,640 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AMApplicationBuild</key>
+	<string>246</string>
+	<key>AMApplicationVersion</key>
+	<string>2.1</string>
+	<key>AMDocumentVersion</key>
+	<string>2</string>
+	<key>actions</key>
+	<array>
+		<dict>
+			<key>action</key>
+			<dict>
+				<key>AMAccepts</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Optional</key>
+					<true/>
+					<key>Types</key>
+					<array>
+						<string>com.apple.cocoa.string</string>
+					</array>
+				</dict>
+				<key>AMActionVersion</key>
+				<string>2.0.1</string>
+				<key>AMParameterProperties</key>
+				<dict>
+					<key>COMMAND_STRING</key>
+					<dict/>
+					<key>CheckedForUserDefaultShell</key>
+					<dict/>
+					<key>inputMethod</key>
+					<dict/>
+					<key>shell</key>
+					<dict/>
+					<key>source</key>
+					<dict/>
+				</dict>
+				<key>AMProvides</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Types</key>
+					<array>
+						<string>com.apple.cocoa.string</string>
+					</array>
+				</dict>
+				<key>ActionBundlePath</key>
+				<string>/System/Library/Automator/Run Shell Script.action</string>
+				<key>ActionName</key>
+				<string>Run Shell Script</string>
+				<key>ActionParameters</key>
+				<dict>
+					<key>COMMAND_STRING</key>
+					<string>#!/usr/bin/env python
+"""
+Rui Pereira &lt;rui.pereira@gmail.com&gt;
+November 2009
+--
+Based on ADS to Bibdesk automator action by
+Jonathan Sick, jonathansick@mac.com, August 2007
+
+Input may be one of the following:
+- ADS abstract page URL
+- ADS bibcode
+- arXiv abstract page
+- arXiv identifier
+"""
+import cgi
+import re
+import subprocess
+import sys
+import tempfile
+import urllib
+import urlparse
+from HTMLParser import HTMLParser
+from htmlentitydefs import name2codepoint
+
+# define these variables to use your account on a remote machine
+# for fetching (refereed) PDF's you have no access locally
+ssh_user = None
+ssh_server = None
+
+
+class BibTex:
+
+    def __init__(self, url):
+        """
+        Create BibTex instance from ADS BibTex URL
+        """
+        bibtex = urllib.urlopen(url).readlines()
+        bibtex = ' '.join([l.strip() for l in bibtex]).strip()
+        bibtex = bibtex[re.search('@[A-Z]+{', bibtex).start():]
+        self.type, self.bibcode, self.info = self.parsebib(bibtex)
+
+    def __str__(self):
+        return ','.join(['@' + self.type + '{' + self.bibcode] + ['%s=%s' % (i, j) for i, j in self.info.items()]) + '}'
+
+    def parsebib(self, bibtex):
+        """
+        Parse bibtex code into dictionary
+        """
+        r = re.search('(?&lt;=^@)(?P&lt;type&gt;[A-Z]+){(?P&lt;bibcode&gt;\S+)(?P&lt;info&gt;,.+)}$', bibtex)
+        s = re.split('(,\s\w+\s=\s)', r.group('info'))
+        info = dict([(i[1:].replace('=', '').strip(), j.strip()) for i, j in zip(s[1::2], s[2::2])])
+        return r.group('type'), r.group('bibcode'), info
+
+
+class ADSHTMLParser(HTMLParser):
+
+    def __init__(self, *args, **kwargs):
+        HTMLParser.__init__(self)
+        self.links = {}
+        self.tag = ''
+        self.get_abs = False
+        self.entities = {}
+
+        self.bibtex = None
+        self.abstract = None
+        self.title = ''
+        self.author = []
+
+    def mathml(self):
+        """
+        Generate dictionary with MathML -&gt; unicode conversion from
+        http://www.w3.org/Math/characters/byalpha.html
+        """
+        w3 = 'http://www.w3.org/Math/characters/byalpha.html'
+        mathml = re.search('(?&lt;=\&lt;pre\&gt;).+(?=&lt;/pre&gt;)', urllib.urlopen(w3).read(), re.DOTALL).group()
+        entities = {}
+        for l in mathml[:-1].split('\n'):
+            s = l.split(',')
+            #ignore double hex values like 'U02266-00338'
+            if not '-' in s[1]:
+                #hexadecimal -&gt; int values, for unichr
+                entities[s[0].strip()] = int(s[1].strip()[1:], 16)
+        return entities
+
+    def parse(self, url):
+        """
+        Feed url into our own HTMLParser and parse found bibtex
+        """
+        self.feed(urllib.urlopen(url).read())
+        #parse bibtex
+        if 'bibtex' in self.links:
+            self.bibtex = BibTex(self.links['bibtex'])
+            self.title = re.search('(?&lt;={).+(?=})', self.bibtex.info['title']).group().replace('{','').replace('}','')
+            self.author = [a.strip() for a in
+                           re.search('(?&lt;={).+(?=})', self.bibtex.info['author']).group().split(' and ')]
+
+    def handle_starttag(self, tag, attrs):
+        #abstract
+        if tag.lower() == 'hr' and self.get_abs:
+            self.abstract = self.tag.strip().decode('utf-8')
+            self.get_abs = False
+            self.tag = ''
+        #handle old scanned articles abstracts
+        elif tag.lower() == 'img' and self.get_abs:
+            self.tag += dict(attrs)['src']
+        #links
+        elif tag.lower() == 'a':
+            if 'href' in dict(attrs):
+                href = dict(attrs)['href']
+                query = cgi.parse_qs(urlparse.urlparse(href).query)
+                if 'bibcode' in query:
+                    if 'link_type' in query:
+                        self.links[query['link_type'][0].lower()] = href
+                    elif 'data_type' in query:
+                        self.links[query['data_type'][0].lower()] = href
+
+    def handle_data(self, data):
+        if self.get_abs:
+            self.tag += data.replace('\n', ' ')
+
+        #beginning of abstract found
+        if data.strip() == 'Abstract':
+            self.get_abs = True
+
+    #handle html entities
+    def handle_entityref(self, name):
+        if self.get_abs:
+            if name in name2codepoint:
+                c = name2codepoint[name]
+                self.tag += unichr(c).encode('utf-8')
+            else:
+                #fetch mathml
+                if not self.entities:
+                    #cache dict
+                    self.entities = self.mathml()
+                if name in self.entities:
+                    c = self.entities[name]
+                    self.tag += unichr(c).encode('utf-8')
+                else:
+                    #nothing worked, leave it as-is
+                    self.tag += '&amp;' + name + ';'
+
+    #handle unicode chars in utf-8
+    def handle_charref(self, name):
+        if self.get_abs:
+            self.tag += unichr(int(name)).encode('utf-8')
+
+    def getPDF(self):
+        """
+        Fetch PDF and save it locally in a temporary file.
+        Tries by order:
+        - refereed article
+        - refereed article using another machine (set ssh_user &amp; ssh_server)
+        - arXiv preprint
+        - electronic journal link
+        """
+
+        if not self.links:
+            return 'failed'
+
+        def filetype(filename):
+            return subprocess.Popen('file %s' % filename, shell=True,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE).stdout.read()
+
+        #refereed
+        if 'article' in self.links:
+            url = self.links['article']
+            #try locally
+            pdf = tempfile.mktemp() + '.pdf'
+            urllib.urlretrieve(url, pdf)
+            if 'PDF document' in filetype(pdf):
+                return pdf
+
+            #try in remote server
+            # you need to set SSH public key authentication
+            # for this to work!
+            elif ssh_user is not None:
+                pdf = tempfile.mktemp() + '.pdf'
+                cmd = 'ssh %s@%s \"touch toto.pdf; wget -O toto.pdf \\"%s\\"\"' % (ssh_user, ssh_server, url)
+                cmd2 = 'scp -q %s@%s:toto.pdf %s' % (ssh_user, ssh_server, pdf)
+                subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+                subprocess.Popen(cmd2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+                if 'PDF document' in filetype(pdf):
+                    return pdf
+
+        #arXiv
+        if 'preprint' in self.links:
+            #arXiv page
+            url = self.links['preprint']
+            for line in urllib.urlopen(url).readlines():
+                if 'dc:identifier' in line:
+                    begin = re.search('dc:identifier="', line).end()
+                    url = line[begin:-2].replace('&amp;#38;', '&amp;').lower()
+                    #get arXiv PDF
+                    pdf = tempfile.mktemp() + '.pdf'
+                    urllib.urlretrieve(url.replace('abs', 'pdf'), pdf)
+                    if 'PDF document' in filetype(pdf):
+                        return pdf
+                    else:
+                        return url
+
+        #electronic journal
+        if 'ejournal' in self.links:
+            return self.links['ejournal']
+
+        return 'failed'
+
+
+if __name__ == '__main__':
+
+    # ADS mirrors - the 1st one of the list will be used as your mirror
+    adsmirrors = ['adsabs.harvard.edu',
+                  'cdsads.u-strasbg.fr',
+                  'ukads.nottingham.ac.uk',
+                  'esoads.eso.org',
+                  'ads.ari.uni-heidelberg.de',
+                  'ads.inasan.ru',
+                  'ads.mao.kiev.ua',
+                  'ads.astro.puc.cl',
+                  'ads.on.br',
+                  'ads.nao.ac.jp',
+                  'ads.bao.ac.cn',
+                  'ads.iucaa.ernet.in',
+                  'www.ads.lipi.go.id']
+
+    # Determine what we're dealing with. The goal is to get a URL into ADS
+    url = urlparse.urlparse(sys.argv[1])
+    if url.scheme == '':
+        # ADS bibcode?
+        adsURL = urlparse.urlunparse(('http', adsmirrors[0], 'abs/%s' % sys.argv[1], '', '', ''))
+        # arXiv identifier?
+        if 'No bibcodes' in urllib.urlopen(adsURL).read():
+            adsURL = urlparse.urlunparse(('http', 'arxiv.org', 'abs/%s' % sys.argv[1], '', '', ''))
+            if 'not recognized' in urllib.urlopen(adsURL).read():
+                # something's wrong
+                sys.exit()
+            else:
+                adsURL = urlparse.urlunparse(('http', adsmirrors[0], 'cgi-bin/bib_query',
+                                              '', 'arXiv:%s' % sys.argv[1], ''))
+    # arXiv URL
+    elif 'arxiv' in url.netloc:
+        # get paper identifier from URL and inject into ADS query
+        arxivid = '/'.join(url.path.split('/')[2:]),
+        adsURL = urlparse.urlunparse(('http', adsmirrors[0], 'cgi-bin/bib_query',
+                                      '', 'arXiv:%s' % arxivid, ''))
+    elif url.netloc in adsmirrors:
+        # we have a nice ADS abstract page entry
+        adsURL = sys.argv[1]
+    else:
+        # we're in trouble here
+        sys.exit()
+
+    # parse the ADS HTML file
+    ads = ADSHTMLParser()
+    ads.parse(adsURL)
+    #pdf local file, title, first author, abstract, bibtex code
+    #UTF-8 encoded
+    print ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
+                                                    ads.title, '|||',
+                                                    ads.author[0], '|||',
+                                                    ads.abstract, '|||',
+                                                    ads.bibtex.__str__()]))
+</string>
+					<key>CheckedForUserDefaultShell</key>
+					<true/>
+					<key>inputMethod</key>
+					<integer>1</integer>
+					<key>shell</key>
+					<string>/usr/bin/python</string>
+					<key>source</key>
+					<string></string>
+				</dict>
+				<key>Application</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>BundleIdentifier</key>
+				<string>com.apple.RunShellScript</string>
+				<key>CFBundleVersion</key>
+				<string>2.0.1</string>
+				<key>CanShowSelectedItemsWhenRun</key>
+				<false/>
+				<key>CanShowWhenRun</key>
+				<true/>
+				<key>Category</key>
+				<array>
+					<string>AMCategoryUtilities</string>
+				</array>
+				<key>Class Name</key>
+				<string>RunShellScriptAction</string>
+				<key>InputUUID</key>
+				<string>ABD35D63-C5DD-4138-B160-0C833C0633D5</string>
+				<key>Keywords</key>
+				<array>
+					<string>Shell</string>
+					<string>Script</string>
+					<string>Command</string>
+					<string>Run</string>
+					<string>Unix</string>
+				</array>
+				<key>OutputUUID</key>
+				<string>CE393D30-FE7D-45E1-8FA7-B77E3843ED1D</string>
+				<key>UUID</key>
+				<string>11621988-BE90-4369-A6FC-DACBBFBE4405</string>
+				<key>UnlocalizedApplications</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>arguments</key>
+				<dict>
+					<key>0</key>
+					<dict>
+						<key>default value</key>
+						<integer>0</integer>
+						<key>name</key>
+						<string>inputMethod</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>0</string>
+					</dict>
+					<key>1</key>
+					<dict>
+						<key>default value</key>
+						<string></string>
+						<key>name</key>
+						<string>source</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>1</string>
+					</dict>
+					<key>2</key>
+					<dict>
+						<key>default value</key>
+						<false/>
+						<key>name</key>
+						<string>CheckedForUserDefaultShell</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>2</string>
+					</dict>
+					<key>3</key>
+					<dict>
+						<key>default value</key>
+						<string></string>
+						<key>name</key>
+						<string>COMMAND_STRING</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>3</string>
+					</dict>
+					<key>4</key>
+					<dict>
+						<key>default value</key>
+						<string>/bin/sh</string>
+						<key>name</key>
+						<string>shell</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>4</string>
+					</dict>
+				</dict>
+				<key>isViewVisible</key>
+				<true/>
+				<key>location</key>
+				<string>420.500000:727.000000</string>
+				<key>nibPath</key>
+				<string>/System/Library/Automator/Run Shell Script.action/Contents/Resources/English.lproj/main.nib</string>
+			</dict>
+			<key>isViewVisible</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>action</key>
+			<dict>
+				<key>AMAccepts</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Optional</key>
+					<true/>
+					<key>Types</key>
+					<array>
+						<string>com.apple.applescript.object</string>
+					</array>
+				</dict>
+				<key>AMActionVersion</key>
+				<string>1.0</string>
+				<key>AMParameterProperties</key>
+				<dict>
+					<key>source</key>
+					<dict/>
+				</dict>
+				<key>AMProvides</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Types</key>
+					<array>
+						<string>com.apple.applescript.object</string>
+					</array>
+				</dict>
+				<key>ActionBundlePath</key>
+				<string>/System/Library/Automator/Run AppleScript.action</string>
+				<key>ActionName</key>
+				<string>Run AppleScript</string>
+				<key>ActionParameters</key>
+				<dict>
+					<key>source</key>
+					<string>-- Rui Pereira &lt;rui.pereira@gmail.com&gt;-- November 2009---- based on:--  AppleScript to convert downloaded Bibtex and abstract information to a BibDesk entry.--  Jonathan Sick, jonathansick@mac.com, August 2007on growlNotification(titlestr, descstr)	tell application "System Events"		--Growl is running		if (count of (every process whose name is "GrowlHelperApp")) &gt; 0 then			tell application "GrowlHelperApp"				register as application "BibDesk" all notifications {"BibDesk notification"} default notifications {"BibDesk notification"}				notify with name "BibDesk notification" title titlestr description descstr application name "BibDesk" priority 0 without sticky			end tell		end if	end tellend growlNotificationon run {input, parameters}		set AppleScript's text item delimiters to "|||"	set thePDFFile to (text item 1 of text item 1 of input)	set theTitle to (text item 2 of text item 1 of input)	set theAuthor to (text item 3 of text item 1 of input)	set theAbstract to (text item 4 of text item 1 of input)	set theBibEntry to (text item 5 of text item 1 of input)	set AppleScript's text item delimiters to ""		tell application "BibDesk"		tell document 1			--searchs for already existent publication with exactly the same title and first author			if (count (search for theTitle)) &gt; 0 then				--delete old one				repeat with thePub in (search for theTitle)					if (count (authors of thePub)) &gt; 0 and name of first author of thePub is theAuthor then						tell thePub							--remove PDFs							repeat with theFile in linked files								if (theFile as string) ends with ".pdf" then									tell application "Finder"										delete file theFile									end tell								end if							end repeat						end tell						delete thePub						my growlNotification("Duplicate publication removed", "\"" &amp; theTitle &amp; "\"")					end if				end repeat			end if						--add new publication			set thePub to first item of (import from theBibEntry)			tell thePub				set the cite key to generated cite key as string				set myCiteKey to cite key				-- old scanned articles				if theAbstract starts with "http://" then					make new linked URL with data (theAbstract as string) at end of linked URLs				else					set the abstract to theAbstract as string				end if				--file found?				if thePDFFile ends with ".pdf" then					add (POSIX file thePDFFile) to beginning of linked files					auto file					-- this is not a file, but rather an URL				else if thePDFFile is not "failed" then					-- only add it if no DOI link present (they are very probably the same)					if (value of field "doi" = "") then						make new linked URL with data (thePDFFile as string) at end of linked URLs					end if				end if			end tell		end tell	end tell		--growl	my growlNotification("New publication added", "\"" &amp; theTitle &amp; "\" as " &amp; myCiteKey)	end run</string>
+				</dict>
+				<key>Application</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>BundleIdentifier</key>
+				<string>com.apple.Automator.RunScript</string>
+				<key>CFBundleVersion</key>
+				<string>1.0</string>
+				<key>CanShowSelectedItemsWhenRun</key>
+				<false/>
+				<key>CanShowWhenRun</key>
+				<true/>
+				<key>Category</key>
+				<array>
+					<string>AMCategoryUtilities</string>
+				</array>
+				<key>Class Name</key>
+				<string>RunScriptAction</string>
+				<key>InputUUID</key>
+				<string>DF4D9B0E-AC68-463C-AEAE-8D99E7FFCBC5</string>
+				<key>Keywords</key>
+				<array>
+					<string>Run</string>
+				</array>
+				<key>OutputUUID</key>
+				<string>C0616C32-37A5-4DCB-885E-6ABBA45006EF</string>
+				<key>UUID</key>
+				<string>D73164ED-DD1A-497F-A036-3EE098E9FF2E</string>
+				<key>UnlocalizedApplications</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>arguments</key>
+				<dict>
+					<key>0</key>
+					<dict>
+						<key>default value</key>
+						<string>on run {input, parameters}
+	
+	(* Your script goes here *)
+	
+	return input
+end run</string>
+						<key>name</key>
+						<string>source</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>0</string>
+					</dict>
+				</dict>
+				<key>isViewVisible</key>
+				<true/>
+				<key>location</key>
+				<string>420.500000:544.000000</string>
+				<key>nibPath</key>
+				<string>/System/Library/Automator/Run AppleScript.action/Contents/Resources/English.lproj/main.nib</string>
+			</dict>
+			<key>isViewVisible</key>
+			<true/>
+		</dict>
+	</array>
+	<key>connectors</key>
+	<dict>
+		<key>AFB2B509-6F10-4E58-B938-2B644EE843C3</key>
+		<dict>
+			<key>from</key>
+			<string>11621988-BE90-4369-A6FC-DACBBFBE4405 - 11621988-BE90-4369-A6FC-DACBBFBE4405</string>
+			<key>to</key>
+			<string>D73164ED-DD1A-497F-A036-3EE098E9FF2E - D73164ED-DD1A-497F-A036-3EE098E9FF2E</string>
+		</dict>
+	</dict>
+	<key>state</key>
+	<dict>
+		<key>AMLogTabViewSelectedIndex</key>
+		<integer>0</integer>
+		<key>libraryState</key>
+		<dict>
+			<key>actionsMajorSplitViewState</key>
+			<dict>
+				<key>expandedPosition</key>
+				<real>0.0</real>
+				<key>subviewState</key>
+				<array>
+					<string>0.000000, 0.000000, 366.000000, 666.000000, NO</string>
+					<string>0.000000, 667.000000, 366.000000, 213.000000, NO</string>
+				</array>
+			</dict>
+			<key>actionsMinorSplitViewState</key>
+			<dict>
+				<key>expandedPosition</key>
+				<real>0.0</real>
+				<key>subviewState</key>
+				<array>
+					<string>0.000000, 0.000000, 163.000000, 666.000000, NO</string>
+					<string>164.000000, 0.000000, 202.000000, 666.000000, NO</string>
+				</array>
+			</dict>
+			<key>variablesMajorSplitViewState</key>
+			<dict>
+				<key>expandedPosition</key>
+				<real>0.0</real>
+				<key>subviewState</key>
+				<array>
+					<string>0.000000, 0.000000, 381.000000, 555.000000, NO</string>
+					<string>0.000000, 556.000000, 381.000000, 199.000000, NO</string>
+				</array>
+			</dict>
+			<key>variablesMinorSplitViewState</key>
+			<dict>
+				<key>expandedPosition</key>
+				<real>0.0</real>
+				<key>subviewState</key>
+				<array>
+					<string>0.000000, 0.000000, 163.000000, 555.000000, NO</string>
+					<string>164.000000, 0.000000, 217.000000, 555.000000, NO</string>
+				</array>
+			</dict>
+		</dict>
+		<key>majorSplitViewState</key>
+		<dict>
+			<key>expandedPosition</key>
+			<real>366</real>
+			<key>subviewState</key>
+			<array>
+				<string>0.000000, 0.000000, 0.000000, 925.000000, YES</string>
+				<string>0.000000, 0.000000, 841.000000, 951.000000, NO</string>
+			</array>
+		</dict>
+		<key>minorSplitViewState</key>
+		<dict>
+			<key>expandedPosition</key>
+			<real>150</real>
+			<key>subviewState</key>
+			<array>
+				<string>0.000000, 0.000000, 841.000000, 782.000000, NO</string>
+				<string>0.000000, 792.000000, 841.000000, 140.000000, NO</string>
+			</array>
+		</dict>
+		<key>windowFrame</key>
+		<string>{{840, 0}, {840, 1028}}</string>
+		<key>workflowViewScrollPosition</key>
+		<string>{{0, 0}, {841, 782}}</string>
+	</dict>
+	<key>workflowMetaData</key>
+	<dict>
+		<key>serviceInputTypeIdentifier</key>
+		<string>com.apple.Automator.text</string>
+		<key>serviceOutputTypeIdentifier</key>
+		<string>com.apple.Automator.nothing</string>
+		<key>workflowTypeIdentifier</key>
+		<string>com.apple.Automator.servicesMenu</string>
+	</dict>
+</dict>
+</plist>
