@@ -184,21 +184,38 @@ class ADSHTMLParser(HTMLParser):
                 if 'PDF document' in filetype(pdf):
                     return pdf
 
-        #arXiv
+        # #arXiv - original
+        # if 'preprint' in self.links:
+        #     #arXiv page
+        #     url = self.links['preprint']
+        #     for line in urllib.urlopen(url).readlines():
+        #         if 'dc:identifier' in line:
+        #             begin = re.search('dc:identifier="', line).end()
+        #             url = line[begin:-2].replace('&#38;', '&').lower()
+        #             #get arXiv PDF
+        #             pdf = tempfile.mktemp() + '.pdf'
+        #             urllib.urlretrieve(url.replace('abs', 'pdf'), pdf)
+        #             if 'PDF document' in filetype(pdf):
+        #                 return pdf
+        #             else:
+        #                 return url
+        #arXiv - via Michael Williams
         if 'preprint' in self.links:
-            #arXiv page
-            url = self.links['preprint']
-            for line in urllib.urlopen(url).readlines():
-                if 'dc:identifier' in line:
-                    begin = re.search('dc:identifier="', line).end()
-                    url = line[begin:-2].replace('&#38;', '&').lower()
-                    #get arXiv PDF
-                    pdf = tempfile.mktemp() + '.pdf'
-                    urllib.urlretrieve(url.replace('abs', 'pdf'), pdf)
-                    if 'PDF document' in filetype(pdf):
-                        return pdf
-                    else:
-                        return url
+           #arXiv page
+           url = self.links['preprint']
+           for line in urllib.urlopen(url).readlines():
+               if '<h1><a href="/">' in line:
+                   mirror = re.search('<h1><a href="/">(.*arXiv.org)', line)
+               if 'dc:identifier' in line:
+                   begin = re.search('dc:identifier="http://arxiv.org', line).end()
+                   url = 'http://' + mirror.group(1) + line[begin:-2].replace('&#38;', '&').lower()
+                   #get arXiv PDF
+                   pdf = tempfile.mktemp() + '.pdf'
+                   urllib.urlretrieve(url.replace('abs', 'pdf'), pdf)
+                   if 'PDF document' in filetype(pdf):
+                       return pdf
+                   else:
+                       return url
 
         #electronic journal
         if 'ejournal' in self.links:
