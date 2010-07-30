@@ -38,25 +38,25 @@ def main():
     url = urlparse.urlsplit(articleID[0])
     if url.scheme == '':
         # ADS bibcode?
-        adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % sys.argv[1], '', ''))
+        adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % articleID[0], '', ''))
         # arXiv identifier?
         if 'No bibcodes' in urllib.urlopen(adsURL).read():
-            adsURL = urlparse.urlunsplit(('http', 'arxiv.org', 'abs/%s' % sys.argv[1], '', ''))
+            adsURL = urlparse.urlunsplit(('http', 'arxiv.org', 'abs/%s' % articleID[0], '', ''))
             if 'not recognized' in urllib.urlopen(adsURL).read():
                 # something's wrong
                 sys.exit()
             else:
                 adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'cgi-bin/bib_query',
-                                              'arXiv:%s' % sys.argv[1], ''))
+                                              'arXiv:%s' % articleID[0], ''))
     # arXiv URL
     elif 'arxiv' in url.netloc:
         # get paper identifier from URL and inject into ADS query
         arxivid = '/'.join(url.path.split('/')[2:]),
         adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'cgi-bin/bib_query',
                                       'arXiv:%s' % arxivid, ''))
-    elif 'ads.' in url.netloc:
+    elif url.netloc in prefs.adsmirrors:
         # we have a nice ADS abstract page entry
-        adsURL = sys.argv[1]
+        adsURL = articleID[0]
     else:
         # we're in trouble here
         sys.exit()
