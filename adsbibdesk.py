@@ -24,16 +24,17 @@ import urlparse
 from HTMLParser import HTMLParser
 from htmlentitydefs import name2codepoint
 
+
 def main():
     """docstring for main"""
     parser = optparse.OptionParser()
     parser.add_option('-d', '--debug', dest="debug", default=False, action="store_true")
     options, articleID = parser.parse_args()
-    
+
     # Get preferences from (optional) config file
     prefs = Preferences()
     if options.debug: prefs['debug'] = True
-    
+
     # Determine what we're dealing with. The goal is to get a URL into ADS
     url = urlparse.urlsplit(articleID[0])
     if url.scheme == '':
@@ -60,7 +61,7 @@ def main():
     else:
         # we're in trouble here
         sys.exit()
-    
+
     # parse the ADS HTML file
     ads = ADSHTMLParser(prefs=prefs)
     ads.parse(adsURL)
@@ -72,10 +73,12 @@ def main():
                                                     ads.abstract, '|||',
                                                     ads.bibtex.__str__()]))
 
+
 class Preferences(object):
     """Manages the preferences on disk and in memory. Preferences are accessed
     with by a dictionary-like interface.
     """
+
     def __init__(self):
         self.prefsPath = os.path.join(os.getenv('HOME'), '.adsbibdesk')
         self._adsmirrors = ['adsabs.harvard.edu',
@@ -91,20 +94,20 @@ class Preferences(object):
                             'ads.bao.ac.cn',
                             'ads.iucaa.ernet.in',
                             'www.ads.lipi.go.id']
-                            
+
         self.prefs = self._getDefaultPrefs() # Hard coded defaults dictionary
         newPrefs = self._getPrefs() # load user prefs from disk
         self.prefs.update(newPrefs) # override defaults with user prefs
         self._keys = self.prefs.keys()
         self._iterIndex = -1
-    
+
     def __getitem__(self, key):
         return self.prefs[key]
-    
+
     def __setitem__(self, key, value):
         self.prefs[key] = value
         self._keys = self.prefs.keys()
-    
+
     def __iter__(self):
         return self
 
@@ -114,7 +117,7 @@ class Preferences(object):
             raise StopIteration
         self._iterIndex += 1
         return self._keys[self._iterIndex]
-    
+
     def _getDefaultPrefs(self):
         """:return: a dictionary of the full set of default preferences. This
         is done in case the user's preference file is missing a key-value pair.
@@ -125,14 +128,14 @@ class Preferences(object):
                 "ssh_user": None,
                 "ssh_server": None,
                 "debug": False}
-    
+
     def _getPrefs(self):
         """Read preferences files from `self.prefsPath`, creates one otherwise."""
         prefs = {}
         # create a default preference file if non existing
         if not os.path.exists(self.prefsPath):
             self._writeDefaultPrefs()
-        
+
         f = open(self.prefsPath, 'r')
         for l in f:
             if l.strip() and not l.strip().startswith('#'):
@@ -142,37 +145,40 @@ class Preferences(object):
                 k, v = l.strip().split('=')
                 if not v:
                     v = None
-                elif v in ['True', 'true', 'yes', 'Yes']:
+                elif v.strip() in ['True', 'true', 'yes', 'Yes']:
                     v = True
-                elif v in ['False', 'false', 'no', 'No']:
+                elif v.strip() in ['False', 'false', 'no', 'No']:
                     v = False
-                elif v in ['None', 'none']:
+                elif v.strip() in ['None', 'none']:
                     v = None
                 prefs[k] = v
         f.close()
         return prefs
-    
+
     def _writeDefaultPrefs(self):
         """
         Set a default preferences file (~/.adsbibdesk)
         """
         prefs = open(self.prefsPath, 'w')
         print >> prefs, """# ADS mirror
-ads_mirror=adsabs.harvard.edu
+ads_mirror=%s
 
 # arXiv mirror
 # (leave it unset to use the arXiv mirror pointed by your ADS mirror)
-arxiv_mirror=
+arxiv_mirror=%s
 
 # download PDFs?
-download_pdf=True
+download_pdf=%s
 
 # set these to use your account on a remote machine for fetching
 # (refereed) PDF's you have no access locally
-ssh_user=
-ssh_server="""
+ssh_user=%s
+ssh_server=%s""" % (self.prefs['ads_mirror'], self.prefs['arxiv_mirror'],
+                    self.prefs['download_pdf'], self.prefs['ssh_user'],
+                    self.prefs['ssh_server'])
+
         prefs.close()
-    
+
     @property
     def adsmirrors(self):
         return self._adsmirrors
@@ -188,10 +194,10 @@ class BibTex:
         bibtex = ' '.join([l.strip() for l in bibtex]).strip()
         bibtex = bibtex[re.search('@[A-Z]+{', bibtex).start():]
         self.type, self.bibcode, self.info = self.parsebib(bibtex)
-    
+
     def __str__(self):
         return ','.join(['@' + self.type + '{' + self.bibcode] + ['%s=%s' % (i, j) for i, j in self.info.items()]) + '}'
-    
+
     def parsebib(self, bibtex):
         """
         Parse bibtex code into dictionary
@@ -210,17 +216,17 @@ class ADSHTMLParser(HTMLParser):
         self.tag = ''
         self.get_abs = False
         self.entities = {}
-        
+
         self.bibtex = None
         self.abstract = None
         self.title = ''
         self.author = []
-        
+
         if 'prefs' in kwargs:
             self.prefs = kwargs['prefs']
         else:
             self.prefs = {} # Use an empty dictionary instead... or just create an empty Preferences instance?
-        
+
     def mathml(self):
         """
         Generate dictionary with MathML -> unicode conversion from
@@ -236,7 +242,7 @@ class ADSHTMLParser(HTMLParser):
                 #hexadecimal -> int values, for unichr
                 entities[s[0].strip()] = int(s[1].strip()[1:], 16)
         return entities
-    
+
     def parse(self, url):
         """
         Feed url into our own HTMLParser and parse found bibtex
@@ -248,7 +254,7 @@ class ADSHTMLParser(HTMLParser):
             self.title = re.search('(?<={).+(?=})', self.bibtex.info['title']).group().replace('{', '').replace('}', '')
             self.author = [a.strip() for a in
                            re.search('(?<={).+(?=})', self.bibtex.info['author']).group().split(' and ')]
-    
+
     def handle_starttag(self, tag, attrs):
         #abstract
         if tag.lower() == 'hr' and self.get_abs:
@@ -268,15 +274,15 @@ class ADSHTMLParser(HTMLParser):
                         self.links[query['link_type'][0].lower()] = href
                     elif 'data_type' in query:
                         self.links[query['data_type'][0].lower()] = href
-    
+
     def handle_data(self, data):
         if self.get_abs:
             self.tag += data.replace('\n', ' ')
-        
+
         #beginning of abstract found
         if data.strip() == 'Abstract':
             self.get_abs = True
-    
+
     #handle html entities
     def handle_entityref(self, name):
         if self.get_abs:
@@ -294,12 +300,12 @@ class ADSHTMLParser(HTMLParser):
                 else:
                     #nothing worked, leave it as-is
                     self.tag += '&' + name + ';'
-    
+
     #handle unicode chars in utf-8
     def handle_charref(self, name):
         if self.get_abs:
             self.tag += unichr(int(name)).encode('utf-8')
-    
+
     def getPDF(self):
         """
         Fetch PDF and save it locally in a temporary file.
@@ -313,12 +319,12 @@ class ADSHTMLParser(HTMLParser):
             return 'failed'
         elif 'download_pdf' in self.prefs and not self.prefs['download_pdf']:
             return 'not downloaded'
-        
+
         def filetype(filename):
             return subprocess.Popen('file %s' % filename, shell=True,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE).stdout.read()
-        
+
         #refereed
         if 'article' in self.links:
             url = self.links['article']
@@ -327,7 +333,7 @@ class ADSHTMLParser(HTMLParser):
             urllib.urlretrieve(url, pdf)
             if 'PDF document' in filetype(pdf):
                 return pdf
-            
+
             #try in remote server
             # you need to set SSH public key authentication
             # for this to work!
@@ -339,7 +345,7 @@ class ADSHTMLParser(HTMLParser):
                 subprocess.Popen(cmd2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
                 if 'PDF document' in filetype(pdf):
                     return pdf
-        
+
         #arXiv
         if 'preprint' in self.links:
             #arXiv page
@@ -362,11 +368,11 @@ class ADSHTMLParser(HTMLParser):
                         return pdf
                     else:
                         return url
-        
+
         #electronic journal
         if 'ejournal' in self.links:
             return self.links['ejournal']
-        
+
         return 'failed'
 
 
