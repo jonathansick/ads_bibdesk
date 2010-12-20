@@ -33,7 +33,8 @@ def main():
 
     # Get preferences from (optional) config file
     prefs = Preferences()
-    if options.debug: prefs['debug'] = True
+    if options.debug:
+        prefs['debug'] = True
 
     # Determine what we're dealing with. The goal is to get a URL into ADS
     url = urlparse.urlsplit(articleID[0])
@@ -238,7 +239,7 @@ class ADSHTMLParser(HTMLParser):
         for l in mathml[:-1].split('\n'):
             s = l.split(',')
             #ignore double hex values like 'U02266-00338'
-            if not '-' in s[1]:
+            if '-' not in s[1]:
                 #hexadecimal -> int values, for unichr
                 entities[s[0].strip()] = int(s[1].strip()[1:], 16)
         return entities
@@ -337,7 +338,7 @@ class ADSHTMLParser(HTMLParser):
             #try in remote server
             # you need to set SSH public key authentication
             # for this to work!
-            elif 'ssh_user' in self.prefs and self.prefs['ssh_user'] is not None:
+            elif self.prefs.get('ssh_user') is not None:
                 pdf = tempfile.mktemp() + '.pdf'
                 cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; wget -O adsbibdesk.pdf \\"%s\\"\"' % (self.prefs['ssh_user'], self.prefs['ssh_server'], url)
                 cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' % (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
@@ -357,7 +358,7 @@ class ADSHTMLParser(HTMLParser):
                     begin = re.search('dc:identifier="', line).end()
                     url = urlparse.urlsplit(line[begin:-2].replace('&#38;', unichr(38)).lower())
                     # use automatic mirror chosen by the ADS mirror
-                    if ('arxiv_mirror' not in self.prefs or not self.prefs['arxiv_mirror']) and mirror is not None:
+                    if not self.prefs.get('arxiv_mirror') and mirror is not None:
                         url = urlparse.urlunsplit((url.scheme, mirror.group(1), url.path, url.query, url.fragment))
                     elif self.prefs['arxiv_mirror']:
                         url = urlparse.urlunsplit((url.scheme, self.prefs['arxiv_mirror'], url.path, url.query, url.fragment))
