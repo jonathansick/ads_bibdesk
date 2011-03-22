@@ -137,8 +137,7 @@ class Preferences(object):
         if not os.path.exists(self.prefsPath):
             self._writeDefaultPrefs()
 
-        f = open(self.prefsPath, 'r')
-        for l in f:
+        for l in open(self.prefsPath):
             if l.strip() and not l.strip().startswith('#'):
                 if '=' not in l:
                     # badly formed setting
@@ -146,14 +145,14 @@ class Preferences(object):
                 k, v = l.strip().split('=')
                 if not v:
                     v = None
-                elif v.strip() in ['True', 'true', 'yes', 'Yes']:
+                elif v.strip().lower() in ('true', 'yes'):
                     v = True
-                elif v.strip() in ['False', 'false', 'no', 'No']:
+                elif v.strip().lower() in ('false', 'no'):
                     v = False
-                elif v.strip() in ['None', 'none']:
+                elif v.strip().lower() == 'none':
                     v = None
                 prefs[k] = v
-        f.close()
+
         return prefs
 
     def _writeDefaultPrefs(self):
@@ -223,10 +222,7 @@ class ADSHTMLParser(HTMLParser):
         self.title = ''
         self.author = []
 
-        if 'prefs' in kwargs:
-            self.prefs = kwargs['prefs']
-        else:
-            self.prefs = {} # Use an empty dictionary instead... or just create an empty Preferences instance?
+        self.prefs = kwargs.get('prefs', {}) # Use an empty dictionary instead... or just create an empty Preferences instance?
 
     def mathml(self):
         """
@@ -351,6 +347,7 @@ class ADSHTMLParser(HTMLParser):
         if 'preprint' in self.links:
             #arXiv page
             url = self.links['preprint']
+            mirror = None
             for line in urllib.urlopen(url):
                 if '<h1><a href="/">' in line:
                     mirror = re.search('<h1><a href="/">(.*ar[xX]iv.org)', line)
