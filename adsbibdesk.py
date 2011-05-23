@@ -192,7 +192,7 @@ class BibTex:
         """
         bibtex = urllib.urlopen(url).readlines()
         bibtex = ' '.join([l.strip() for l in bibtex]).strip()
-        bibtex = bibtex[re.search('@[A-Z]+{', bibtex).start():]
+        bibtex = bibtex[re.search('@[A-Z]+\{', bibtex).start():]
         self.type, self.bibcode, self.info = self.parsebib(bibtex)
 
     def __str__(self):
@@ -230,7 +230,7 @@ class ADSHTMLParser(HTMLParser):
         http://www.w3.org/Math/characters/byalpha.html
         """
         w3 = 'http://www.w3.org/Math/characters/byalpha.html'
-        mathml = re.search('(?<=\<pre\>).+(?=</pre>)', urllib.urlopen(w3).read(), re.DOTALL).group()
+        mathml = re.search('(?<=<pre>).+(?=</pre>)', urllib.urlopen(w3).read(), re.DOTALL).group()
         entities = {}
         for l in mathml[:-1].split('\n'):
             s = l.split(',')
