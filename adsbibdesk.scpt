@@ -17,14 +17,16 @@ on growlNotification(titlestr, descstr)
 	end tell
 end growlNotification
 
-on run {input, parameters}
+on run input
 	
+	set AppleScript's text item delimiters to " "
+	set input to (input as text)
 	set AppleScript's text item delimiters to "|||"
-	set thePDFFile to (text item 1 of text item 1 of input)
-	set theTitle to (text item 2 of text item 1 of input)
-	set theAuthor to (text item 3 of text item 1 of input)
-	set theAbstract to (text item 4 of text item 1 of input)
-	set theBibEntry to (text item 5 of text item 1 of input)
+	set thePDFFile to (text item 1 of input)
+	set theTitle to (text item 2 of input)
+	set theAuthor to (text item 3 of input)
+	set theAbstract to (text item 4 of input)
+	set theBibEntry to (text item 5 of input)
 	set AppleScript's text item delimiters to ""
 	
 	tell application "BibDesk"
@@ -33,7 +35,7 @@ on run {input, parameters}
 			if (count (search for theTitle)) > 0 then
 				--delete old one
 				repeat with thePub in (search for theTitle)
-					if (count (authors of thePub)) > 0 and name of first author of thePub is theAuthor then
+					if (count (authors of thePub)) > 0 and name of first author of thePub contains theAuthor then
 						tell thePub
 							--remove PDFs
 							repeat with theFile in linked files

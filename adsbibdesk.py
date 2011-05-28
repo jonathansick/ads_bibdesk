@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Rui Pereira <rui.pereira@gmail.com>
-July 2010
+May  2011
 --
 Based on ADS to Bibdesk automator action by
 Jonathan Sick, jonathansick@mac.com, August 2007
@@ -19,7 +19,7 @@ import subprocess
 import sys
 import optparse
 import tempfile
-import urllib
+import urllib, urllib2
 import urlparse
 from HTMLParser import HTMLParser
 from htmlentitydefs import name2codepoint
@@ -36,20 +36,57 @@ def main():
     if options.debug:
         prefs['debug'] = True
 
-    # Determine what we're dealing with. The goal is to get a URL into ADS
-    url = urlparse.urlsplit(articleID[0])
+    # multiple arguments - bibcodes to compare with ADS
+    if len(articleID) > 1:
+        changed = open('changed_arxiv', 'w')
+        for n, bibcode in enumerate(articleID):
+            adsURL = parseURL(bibcode, prefs)
+            if adsURL is None:
+                continue
+            # parse the ADS HTML file
+            ads = ADSHTMLParser(prefs=prefs)
+            ads.parse(adsURL)
+            if ads.bibtex.bibcode != bibcode:
+                print '%i. %s has become %s' % (n+1, bibcode, ads.bibtex.bibcode)
+                print >> changed, bibcode
+            else:
+                print '%i. %s has not changed' % (n+1, bibcode)
+                continue
+        changed.close()
+
+    # normal call
+    else:
+        # Determine what we're dealing with. The goal is to get a URL into ADS
+        adsURL = parseURL(articleID[0], prefs)
+        if adsURL is None:
+            sys.exit()
+
+        # parse the ADS HTML file
+        ads = ADSHTMLParser(prefs=prefs)
+        ads.parse(adsURL)
+        #pdf local file, title, first author, abstract, bibtex code
+        #UTF-8 encoded
+        print ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
+                                                        ads.title, '|||',
+                                                        ads.author[0], '|||',
+                                                        ads.abstract, '|||',
+                                                        ads.bibtex.__str__()]))
+
+
+def parseURL(in_url, prefs):
+    url = urlparse.urlsplit(in_url)
     if url.scheme == '':
         # ADS bibcode?
-        adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % articleID[0], '', ''))
+        adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % in_url, '', ''))
         # arXiv identifier?
         if 'No bibcodes' in urllib.urlopen(adsURL).read():
-            adsURL = urlparse.urlunsplit(('http', 'arxiv.org', 'abs/%s' % articleID[0], '', ''))
+            adsURL = urlparse.urlunsplit(('http', 'arxiv.org', 'abs/%s' % in_url, '', ''))
             if 'not recognized' in urllib.urlopen(adsURL).read():
                 # something's wrong
-                sys.exit()
+                return None
             else:
                 adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'cgi-bin/bib_query',
-                                              'arXiv:%s' % articleID[0], ''))
+                                              'arXiv:%s' % in_url, ''))
     # arXiv URL
     elif 'arxiv' in url.netloc:
         # get paper identifier from URL and inject into ADS query
@@ -58,21 +95,12 @@ def main():
                                       'arXiv:%s' % arxivid, ''))
     elif url.netloc in prefs.adsmirrors:
         # we have a nice ADS abstract page entry
-        adsURL = articleID[0]
+        adsURL = in_url
     else:
         # we're in trouble here
-        sys.exit()
+        return None
 
-    # parse the ADS HTML file
-    ads = ADSHTMLParser(prefs=prefs)
-    ads.parse(adsURL)
-    #pdf local file, title, first author, abstract, bibtex code
-    #UTF-8 encoded
-    print ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
-                                                    ads.title, '|||',
-                                                    ads.author[0], '|||',
-                                                    ads.abstract, '|||',
-                                                    ads.bibtex.__str__()]))
+    return adsURL
 
 
 class Preferences(object):
@@ -327,14 +355,21 @@ class ADSHTMLParser(HTMLParser):
             url = self.links['article']
             #try locally
             pdf = tempfile.mktemp() + '.pdf'
-            urllib.urlretrieve(url, pdf)
+            # test for HTTP auth need
+            try:
+                urllib2.urlopen(url)
+                urllib.urlretrieve(url, pdf)
+            except urllib2.HTTPError:
+                # dummy file
+                open(pdf, 'w').write('dummy')
+
             if 'PDF document' in filetype(pdf):
                 return pdf
 
             #try in remote server
             # you need to set SSH public key authentication
             # for this to work!
-            elif self.prefs.get('ssh_user') is not None:
+            elif 'ssh_user' in self.prefs and self.prefs['ssh_user'] is not None:
                 pdf = tempfile.mktemp() + '.pdf'
                 cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; wget -O adsbibdesk.pdf \\"%s\\"\"' % (self.prefs['ssh_user'], self.prefs['ssh_server'], url)
                 cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' % (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
@@ -355,16 +390,21 @@ class ADSHTMLParser(HTMLParser):
                     begin = re.search('dc:identifier="', line).end()
                     url = urlparse.urlsplit(line[begin:-2].replace('&#38;', unichr(38)).lower())
                     # use automatic mirror chosen by the ADS mirror
-                    if not self.prefs.get('arxiv_mirror') and mirror is not None:
+                    if ('arxiv_mirror' not in self.prefs or not self.prefs['arxiv_mirror']) and mirror is not None:
                         url = urlparse.urlunsplit((url.scheme, mirror.group(1), url.path, url.query, url.fragment))
                     elif self.prefs['arxiv_mirror']:
                         url = urlparse.urlunsplit((url.scheme, self.prefs['arxiv_mirror'], url.path, url.query, url.fragment))
                     #get arXiv PDF
-                    pdf = tempfile.mktemp() + '.pdf'
-                    urllib.urlretrieve(url.replace('abs', 'pdf'), pdf)
-                    if 'PDF document' in filetype(pdf):
-                        return pdf
-                    else:
+                    # test for HTTP auth need
+                    try:
+                        urllib2.urlopen(url)
+                        pdf = tempfile.mktemp() + '.pdf'
+                        urllib.urlretrieve(url.replace('abs', 'pdf'), pdf)
+                        if 'PDF document' in filetype(pdf):
+                            return pdf
+                        else:
+                            return url
+                    except urllib2.HTTPError:
                         return url
 
         #electronic journal
