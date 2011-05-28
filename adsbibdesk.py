@@ -40,12 +40,22 @@ def main():
     if len(articleID) > 1:
         changed = open('changed_arxiv', 'w')
         for n, bibcode in enumerate(articleID):
+            if prefs['debug']:
+                print "bibcode", bibcode
             adsURL = parseURL(bibcode, prefs)
+            if prefs['debug']:
+                print "adsURL", adsURL
             if adsURL is None:
                 continue
             # parse the ADS HTML file
             ads = ADSHTMLParser(prefs=prefs)
             ads.parse(adsURL)
+            if prefs['debug']:
+                print "ads.bibtex", ads.bibtex
+            if ads.bibtex == None: # ADSHTMLParser failed
+                if prefs['debug']:
+                    print "FAILURE: ads.bibtex is None!"
+                continue
             if ads.bibtex.bibcode != bibcode:
                 print '%i. %s has become %s' % (n+1, bibcode, ads.bibtex.bibcode)
                 print >> changed, bibcode
@@ -274,6 +284,9 @@ class ADSHTMLParser(HTMLParser):
         """
         self.feed(urllib.urlopen(url).read())
         #parse bibtex
+        if self.prefs['debug']:
+            print "ADSHTMLParser links:",
+            print self.links
         if 'bibtex' in self.links:
             self.bibtex = BibTex(self.links['bibtex'])
             self.title = re.search('(?<={).+(?=})', self.bibtex.info['title']).group().replace('{', '').replace('}', '')
