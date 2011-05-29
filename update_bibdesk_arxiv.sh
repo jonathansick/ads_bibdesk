@@ -36,8 +36,8 @@ EOF
 
 # check for changed bibcodes
 python -c "print 'Checking %i ArXiv entries for changes...' % (len('${bibcodes}'.strip().split()))"
-# python py.py $bibcodes
-python py.py $bibcodes --debug # DEBUG MODE
+python py.py $bibcodes
+# python py.py $bibcodes --debug # DEBUG MODE
 
 changed=$(wc -l changed_arxiv | awk '{print $1}')
 if [ "$changed" -gt "0" ]
@@ -89,6 +89,7 @@ tell application "BibDesk"
 end tell
 EOF
     osascript scpt.scpt `python py.py ${bibcode}`
+    sleep 300
 done
 
 #clean up
