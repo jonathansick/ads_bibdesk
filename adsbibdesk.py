@@ -17,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import optparse
 import tempfile
 import urllib, urllib2
@@ -42,7 +43,8 @@ def main():
         for n, bibcode in enumerate(articleID):
             if prefs['debug']:
                 print "bibcode", bibcode
-            adsURL = parseURL(bibcode, prefs)
+            # these are ADS bibcodes by default
+            adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % bibcode, '', ''))
             if prefs['debug']:
                 print "adsURL", adsURL
             if adsURL is None:
@@ -52,7 +54,7 @@ def main():
             ads.parse(adsURL)
             if prefs['debug']:
                 print "ads.bibtex", ads.bibtex
-            if ads.bibtex == None: # ADSHTMLParser failed
+            if ads.bibtex is None: # ADSHTMLParser failed
                 if prefs['debug']:
                     print "FAILURE: ads.bibtex is None!"
                 continue
@@ -62,6 +64,8 @@ def main():
             else:
                 print '%i. %s has not changed' % (n+1, bibcode)
                 continue
+            # sleep for 5 seconds, to prevent ADS flooding
+            time.sleep(5)
         changed.close()
 
     # normal call
@@ -88,15 +92,24 @@ def parseURL(in_url, prefs):
     if url.scheme == '':
         # ADS bibcode?
         adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % in_url, '', ''))
+        if prefs['debug']:
+            print 'ADS', adsURL
+        ads = urllib.urlopen(adsURL).read()
         # arXiv identifier?
-        if 'No bibcodes' in urllib.urlopen(adsURL).read():
+        if 'No bibcodes' in ads:
             adsURL = urlparse.urlunsplit(('http', 'arxiv.org', 'abs/%s' % in_url, '', ''))
+            if prefs['debug']:
+                print 'arXiv', adsURL
             if 'not recognized' in urllib.urlopen(adsURL).read():
                 # something's wrong
                 return None
             else:
                 adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'cgi-bin/bib_query',
                                               'arXiv:%s' % in_url, ''))
+        else:
+            # don't waste a perfectly good urlopen
+            adsURL = ads
+
     # arXiv URL
     elif 'arxiv' in url.netloc:
         # get paper identifier from URL and inject into ADS query
@@ -282,7 +295,7 @@ class ADSHTMLParser(HTMLParser):
         """
         Feed url into our own HTMLParser and parse found bibtex
         """
-        self.feed(urllib.urlopen(url).read())
+        self.feed(url.startswith('http') and urllib.urlopen(url).read() or url)
         #parse bibtex
         if self.prefs['debug']:
             print "ADSHTMLParser links:",
@@ -370,8 +383,8 @@ class ADSHTMLParser(HTMLParser):
             pdf = tempfile.mktemp() + '.pdf'
             # test for HTTP auth need
             try:
-                urllib2.urlopen(url)
-                urllib.urlretrieve(url, pdf)
+                tmp = urllib2.urlopen(url)
+                open(pdf, 'wb').write(tmp.read())
             except urllib2.HTTPError:
                 # dummy file
                 open(pdf, 'w').write('dummy')
@@ -408,16 +421,11 @@ class ADSHTMLParser(HTMLParser):
                     elif self.prefs['arxiv_mirror']:
                         url = urlparse.urlunsplit((url.scheme, self.prefs['arxiv_mirror'], url.path, url.query, url.fragment))
                     #get arXiv PDF
-                    # test for HTTP auth need
-                    try:
-                        urllib2.urlopen(url)
-                        pdf = tempfile.mktemp() + '.pdf'
-                        urllib.urlretrieve(url.replace('abs', 'pdf'), pdf)
-                        if 'PDF document' in filetype(pdf):
-                            return pdf
-                        else:
-                            return url
-                    except urllib2.HTTPError:
+                    pdf = tempfile.mktemp() + '.pdf'
+                    urllib.urlretrieve(url.replace('abs', 'pdf'), pdf)
+                    if 'PDF document' in filetype(pdf):
+                        return pdf
+                    else:
                         return url
 
         #electronic journal
