@@ -43,7 +43,7 @@ from HTMLParser import HTMLParser
 from htmlentitydefs import name2codepoint
 
 # default timeout for url calls
-socket.setdefaulttimeout(10)
+socket.setdefaulttimeout(30)
 
 def main():
     """
