@@ -44,8 +44,9 @@ return bibcodes as text
 EOF
 )
 
+if [ "$bibcodes" == "" ]; then echo "Nothing to update!"; exit; fi
 # check for changed bibcodes
-python -c "import math;l=len('${bibcodes}'.strip().split()); print 'Checking %i ArXiv entries for changes...\n(to prevent ADS flooding this will take a while, check back in around %i minutes)' % (l, math.ceil(l*10./60.))"
+python -c "import math;l=len('${bibcodes}'.strip().split());t=math.ceil(l*10./60.); print 'Checking %i ArXiv entries for changes...\n(to prevent ADS flooding this will take a while, check back in around %i %s)' % (l, t, t > 1 and 'minutes' or 'minute')"
 python py.py $bibcodes
 # python py.py $bibcodes --debug # DEBUG MODE
 
@@ -62,10 +63,17 @@ if [ "$continue" != "Y" ] && [ "$continue" != "y" ]
 then exit
 fi
 
-echo "To prevent ADS flooding, we will wait 1 minute between each update, so go grab a coffee."
+echo "(to prevent ADS flooding, we will wait for a while between each update, so go grab a coffee)"
 # update bibcodes
 for bibcode in `cat changed_arxiv`; do
     echo "Updating $bibcode..."
+    # sleep 1 minute if updating a lot of stuff, if not wait only 10s
+    if [ "$changed" -gt "10" ]
+    then
+        sleep 60
+    else
+        sleep 10
+    fi
     # delete previous arXiv version explicitely
     # the automated same author/title check fails a lot
     cat << EOF | osascript -
@@ -124,19 +132,9 @@ tell document 1 of application "BibDesk"
 end tell
 EOF
     osascript scpt.scpt `python py.py ${bibcode}`
-    sleep 60
+
 done
 
 #clean up
-cd -
+cd - > /dev/null
 rm -rf $tmpdir
-
-
-
-
-
-
-
-
-
-
