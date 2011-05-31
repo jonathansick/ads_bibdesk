@@ -22,6 +22,8 @@ Now activate the 'Add to BibDesk' scripts:
 
 The bibtex and abstract of the article will be copied into your currently-open BibDesk database. The scripts are now empowered to try download the article's PDF from ADS, or alternatively, arXiv. A Growl notification will appear when the import is complete.
 
+**Updating pre-prints:** From the terminal, run the new update_bibdesk_arxiv.sh shell script to automatically update any astro-ph pre-prints that have been recently refereed.
+
 For more details, see the [ADS to BibDesk homepage](http://www.jonathansick.ca/adsbibdesk/index.html).
 
 Developer Notes
@@ -50,4 +52,4 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+along with ADS to BibDesk.  If not, see <http://www.gnu.org/licenses/>.
