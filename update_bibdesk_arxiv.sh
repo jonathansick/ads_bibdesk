@@ -46,7 +46,7 @@ EOF
 
 if [ "$bibcodes" == "" ]; then echo "Nothing to update!"; exit; fi
 # check for changed bibcodes
-python -c "import math;l=len('${bibcodes}'.strip().split());t=math.ceil(l*10./60.); print 'Checking %i ArXiv entries for changes...\n(to prevent ADS flooding this will take a while, check back in around %i %s)' % (l, t, t > 1 and 'minutes' or 'minute')"
+python -c "import math;l=len('${bibcodes}'.strip().split());t=math.ceil(l*15./60.); print 'Checking %i ArXiv entries for changes...\n(to prevent ADS flooding this will take a while, check back in around %i %s)' % (l, t, t > 1 and 'minutes' or 'minute')"
 python py.py $bibcodes
 # python py.py $bibcodes --debug # DEBUG MODE
 
@@ -72,7 +72,7 @@ for bibcode in `cat changed_arxiv`; do
     then
         sleep 60
     else
-        sleep 10
+        sleep 15
     fi
     # delete previous arXiv version explicitely
     # the automated same author/title check fails a lot

@@ -62,8 +62,8 @@ def main():
     if len(articleID) > 1:
         changed = open('changed_arxiv', 'w')
         for n, bibcode in enumerate(articleID):
-            # sleep for 10 seconds, to prevent ADS flooding
-            time.sleep(10)
+            # sleep for 15 seconds, to prevent ADS flooding
+            time.sleep(15)
             if prefs['debug']:
                 print "bibcode", bibcode
             # these are ADS bibcodes by default
