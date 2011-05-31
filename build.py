@@ -22,8 +22,8 @@ import re
 from xml.etree import ElementTree
 
 def compress(obj):
-    import binascii, zlib, cPickle
-    return binascii.b2a_base64(zlib.compress(cPickle.dumps(obj, protocol=-1)))
+    import binascii, zlib
+    return binascii.b2a_base64(zlib.compress(obj))
 
 if __name__ == '__main__':
 
