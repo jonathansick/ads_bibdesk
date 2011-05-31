@@ -107,27 +107,36 @@ def main():
 
 
 def parseURL(in_url, prefs):
+
+    # let in_url be a local file with 
+    # the contents of the ADS page
+    if os.path.isfile(in_url):
+        return open(in_url).read()
+
     url = urlparse.urlsplit(in_url)
+    # identifier (no URL)
     if url.scheme == '':
         # ADS bibcode?
         adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % in_url, '', ''))
         if prefs['debug']:
             print 'ADS', adsURL
-        ads = urllib2.urlopen(adsURL).read()
-        # arXiv identifier?
-        if 'No bibcodes' in ads:
-            adsURL = urlparse.urlunsplit(('http', 'arxiv.org', 'abs/%s' % in_url, '', ''))
+        try:
+            # don't waste a perfectly good urlopen
+            adsURL = urllib2.urlopen(adsURL).read()
+        except urllib2.HTTPError:
+            # arXiv identifier?
+            arxivURL = urlparse.urlunsplit(('http', 'arxiv.org', 'abs/%s' % in_url, '', ''))
             if prefs['debug']:
-                print 'arXiv', adsURL
-            if 'not recognized' in urllib2.urlopen(adsURL).read():
-                # something's wrong
-                return None
-            else:
+                print 'arXiv', arxivURL
+            try:
+                # test existence of arXiv page
+                urllib2.urlopen(arxivURL).read()
+                # ADS page corresponding to the arXiv identifier
                 adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'cgi-bin/bib_query',
                                               'arXiv:%s' % in_url, ''))
-        else:
-            # don't waste a perfectly good urlopen
-            adsURL = ads
+            # something's wrong
+            except urllib2.HTTPError:
+                return None
 
     # arXiv URL
     elif 'arxiv' in url.netloc:
@@ -135,11 +144,13 @@ def parseURL(in_url, prefs):
         arxivid = '/'.join(url.path.split('/')[2:]),
         adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'cgi-bin/bib_query',
                                       'arXiv:%s' % arxivid, ''))
+
+    # we have a nice ADS abstract page entry
     elif url.netloc in prefs.adsmirrors:
-        # we have a nice ADS abstract page entry
         adsURL = in_url
+
+    # we're in trouble here
     else:
-        # we're in trouble here
         return None
 
     return adsURL
@@ -277,8 +288,10 @@ class BibTex:
         info = dict([(i[1:].replace('=', '').strip(), j.strip()) for i, j in zip(s[1::2], s[2::2])])
         return r.group('type'), r.group('bibcode'), info
 
+
 class ADSException(Exception):
     pass
+
 
 class ADSHTMLParser(HTMLParser):
 
@@ -318,10 +331,12 @@ class ADSHTMLParser(HTMLParser):
         """
         try:
             self.feed(url.startswith('http') and urllib2.urlopen(url).read() or url)
+        # HTTP timeout
         except urllib2.URLError, err:
             if self.prefs['debug']:
                 print '%s timed out' % url
             raise ADSException(err)
+
         #parse bibtex
         if self.prefs['debug']:
             print "ADSHTMLParser links:",
@@ -402,10 +417,10 @@ class ADSHTMLParser(HTMLParser):
                             stdout=sp.PIPE,
                             stderr=sp.PIPE).stdout.read()
 
-        #refereed
+        # refereed
         if 'article' in self.links:
             url = self.links['article']
-            #try locally
+            # try locally
             pdf = tempfile.mktemp() + '.pdf'
             # test for HTTP auth need
             try:
@@ -417,9 +432,8 @@ class ADSHTMLParser(HTMLParser):
             if 'PDF document' in filetype(pdf):
                 return pdf
 
-            #try in remote server
-            # you need to set SSH public key authentication
-            # for this to work!
+            # try in remote server
+            # you need to set SSH public key authentication for this to work!
             elif 'ssh_user' in self.prefs and self.prefs['ssh_user'] is not None:
                 pdf = tempfile.mktemp() + '.pdf'
                 cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; wget -O adsbibdesk.pdf \\"%s\\"\"' % (self.prefs['ssh_user'], self.prefs['ssh_server'], url)
@@ -429,9 +443,9 @@ class ADSHTMLParser(HTMLParser):
                 if 'PDF document' in filetype(pdf):
                     return pdf
 
-        #arXiv
+        # arXiv
         if 'preprint' in self.links:
-            #arXiv page
+            # arXiv page
             url = self.links['preprint']
             mirror = None
             for line in urllib2.urlopen(url):
@@ -445,7 +459,7 @@ class ADSHTMLParser(HTMLParser):
                         url = urlparse.urlunsplit((url.scheme, mirror.group(1), url.path, url.query, url.fragment))
                     elif self.prefs['arxiv_mirror']:
                         url = urlparse.urlunsplit((url.scheme, self.prefs['arxiv_mirror'], url.path, url.query, url.fragment))
-                    #get arXiv PDF
+                    # get arXiv PDF
                     pdf = tempfile.mktemp() + '.pdf'
                     open(pdf, 'wb').write(urllib2.urlopen(url.replace('abs', 'pdf')).read())
                     if 'PDF document' in filetype(pdf):

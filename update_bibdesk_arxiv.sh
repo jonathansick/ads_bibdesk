@@ -16,8 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # ugliest hack in the world - harcoded/compressed strings of both applescript and python scripts as in the automator actions
-py="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"
-scpt="eJyVVlFvHDUQLrzd8idGfig5KZemBYSooDQlDS2gNGqKxAMvvt3ZO5Nde7G9SU6kEj+dGdt7671eIUj74LW/GX+e+Wbsvz99d/rZgweLBbztFVygRWUlfGt7ddTFn+erVqrmqDTts4Jg5+Ya2yVaeHJ8/A1N8NxSOqzA6Kf8Aydd1+BlaVXnwRsojb5G66EyN7oxsiLkC7X0eAtSVyCXzltZelC6NraVXhnNVpJBp+iuALW3m6Pg+SejpV9LDZeqvDqEP9Kvo7/nrSyZ4yGc9Kveeab3dVGQs5U1N8258apWZXB/4JVvkLY9hApdSYN5MfPYNCCJeQKBuNw4jy28vCYCThSz2WLxI7sC5cD2Wiu9oklVw0Fpeu3B0AjppBvorCnRObhZG4egZYtsI4L1K2worhQiMZ/DMzgGv0ZNfvYQ2MEzaGZxpYiWBemm4BQtAZLc6Oy0Dv4aFifz4j2dvpZ94+8JD/uHqQ3cKL+OB9sPhhBiGAId4sx6YKop5hP6E1eCAqiMVX5D4eGdTO/BeUryhjkgqYaDVcShqotxigcf5DuogDJGEut6X8yKmUOfq/RzR9a3JEHOd4WNamlkHctQgIjwYMszB3Eko838fzm7u7tL7ijrF6dnZ4qDRD5Hi8eso7DFfIt8F4M5wT3ZgzvpKVZ2B/jFPuBQdFPol3uglJOXXIA70K92ofeMgODwfyj1IfNFqoPKlH1LdQePOeOLhUNpy7UDahEkcIuy2gDeciUQpuuXW09BmHhLZ2s2TB8cKyuqkdtNrSz1BhkCxa7H8j2Ie4QthpjvlCgRoeOgRzANtztMJdmh9HFnTmu/pMDsdxfw+Z6RiONgRtO0I1MNNUELOeURyG3VS0X1miV+4JmiGJFphshbbKl5AwnPDZM75IMgiX2j9BVytKh8B2jgPWBI/iQhaoFz6s+Viw7EUVfVIqext6+dKV2hFSNklqJah3KIO4yrWb2PE1z14188RbEXn3xPYtFu9twK4rSPJHGiqBi0ShyC+F0IeDgW5MMwk5KakZoyGheilGVFqcWbfA9eGJoCZZbqJOY8FBBfK6rtDN2gtTVtXpPz7b2RnS45gpKs4QpD4a5Qo6WDVePsNoFbo3bzAy3+HC0GXJJ9ELwrpdbkQ1rqxYMwVD1pKM7T6iCHtffd00ePckW08grD8ZPCfn37SwRX0ssgr62rTGKkUA4jhWI0i9tj45JUhnPLrLftdVfspGuxCLqrqSKr77MzDf35X/TNuTy4eHP5+retdpPVnLdf0mUd3gkZ86ykqKRN+C9SfZI9vRPoo7uUHkC8dAhLumwod2u+8zUffHtumPJMdqKm1xrpNaPJ+dPUD5mu8mymDZy+eR040WWLjtsoB58wFmF4xCzlMuuiWfe6lk2fehOSMERllIDvqLvP8+L/71wP1O+V6t0Si8Od10AcjqOCDh9KvfhI0Z9PS5Fj9PFiZ6I8uy0Vikl4c9Droij+/OToHygckz0="
+py="eJytO9ty27iS7/oKjLQZUmOJjp2q2ZQmcuJJ4hNv5eKynTpnVtbqQCQkMaZIDkha0Way377dDZAEL7KVZPRg89JoNBp9b7D302GWyMO5Hx6K8I7F23QVhZ1ut9s5fXXF0oj97s9fieSWDYdsIX039aMwEEnC/HUcyZRFC4aAcTYPfJfjW3gVluM6L6N4K/3lKmX2yz47fnx0xNhl5rMLIYUvOXsmM9+J1c2L5Zr7geNG6xPGQ6/DWn7/FYU8XfGQXfnuLXv2Sd8mcPdizV0a3Olcr/yExTJaSr5mcLmQQrAkWqQbLsWIbaOMuYBDCs9PUunPs1QwP8VJDyPJ1pHnL7YdeJCFnpAsXQmWCrlOcLl484/3H9k/RCgkD9gFLZ299V0RJoLxRDEjWQmPzbcdBD/D2a/07OwsAqzEqgETPryX7E7IBO7Zk3wCjW3AItmxeYoESxbFOKgPVG5ZwNNynNNccLkuD/aDcK6iGJaxAmywsI0fBGwuWJaIRRYMOgDJ/nl+/ebDx2t2+v4P9s/Ty8vT99d//AaQIBLwVtwJhQd2PvABLSxG8jDdAs2dd68vX74B+NPfz9+eX/8BZLOz8+v3r6+u2NmHS3bKLk4vr89ffnx7eskuPl5efLh67TB2JZAg0bmHnQvaDuCaJ1KQjQSW+gdsXgIkBR5b8TsBm+gK/w4I4swFYXt4jzo8iMIlLQwgS74BRecLFkbpgCVA2bNVmsajw8PNZuMsw8yJ5PIwUBiSwxMg5HeewKywbaWqeKgqPEujNU+Bck76gmJQEdsBaxPbATvNllmSgpI8/s9O5zyMgetrvsVtikKRr2sRBUG08cPlqDOkmfkcthpmYjFfCvbx8q1+PvfnbuQJuOPyX/5dFa546nsiTP2FLyRpvVbrZJvkl1FxJUV+lfrr4hqkMuYyKd+Jdbzwg+I+idxbkXbyW3fp55eZDAJ/fmzcKkTFyGwOO+OitQGtSuLOQkZr9ub63dsLhJO5DSqfKIhVug5wUenWE4vCUoV8LY6RIXEEBqrT6YFILXgWqNWghKOsARFgGYIg6Si6nUSkGk6D2UeP+50OPIO98UO7PyIzhbzD/0SH1tQE7Qloaha6KwJmQRTFFfBYLWRccNH5QEPVcuy+AeRwz5spxLY19KwBs4ZDT8yzJVyC3KXjLt11B/nCxmc8QBuipHDcTUAkxSyVmegqxJpMgJCp7wbi/BVQomejfzMulwlQQdA9UCcQHikWYK1D2BZG3LYVFh70Qf3Chb9ktPtEuET+j9lFOUYvyV/kkztE9Kiw9TRmYqmFTWHwNdCbE7CGVflxAFZWLrM17HHChrmcJ6iCoEYx2ljSbVCCfDKQB7tYZJ+dsKNyRhf0cAmKjJsAYJa+h7V/9u+QzRurXwCjjIDd1nOiaRUhUCLBHBsTjCquq8eSQIiYxh49BtsCfPKA60AvrBbMakr6ugDp8ECvK2NR6BwaTnJnvoJlVZk1ajjMWIKos66mtlvQXSMPzAp6LuCbYTcSMFu5JFXguZeAkQF25QrrwEUWJuAVUtu20GoC1zRpADxb+1JG0poCK8EGHT5KLPYonwWeIYut/veuTVEDS1MXtZURfWQ2cWVoKErpNNYDi4H3pR2xafIx/e3XgZVq2Gq+HyDbARak4rMiXd/UsZVv0Km/BzcwglVVaGUL8IuiGSztQYtBz9np+duPl69HLTP+1G0MBAFO/TATu8l1cg35aZxv9S5eWI98hz1KwJmDyIFurAVTImKHB0eDUlCayPs7MJ6c5ErdLvECzOI+1EAokCNq0NOcu8EUPdRxgwjkpbCiYSTXXHmZTpOaHnslMNb0weNvMFjbCIvCHx74Omhx2DUI9DICJD5ZvSXYZY6eX4Xeud3DX6GsJLRwWVqpyeOpVtNyLWoPCZMWt8oyISxwxGdQc70YRfBDSra3gu1WLpjEAyseAdMINxhPP8V/C19CxAQR1yqSgyLEoV1CEa5sfY99vD4bPgWLjY9LjdEbbzmfIDKw1zy2A76ee5x9HrHPjoK2rSxdDJ9a/QGbIJnA8otXZzbcWn/99Zc1aNWtfX6ITK/lb8CkGEE7+3dgK9j5NyDTqjubAc7ZzO5PweSrOKoQTT+cgSvJhXKUK0wA4q1eYSjMDTFQfl6DoQCiDlJYoINlyk0x3EUQDDpQwECD/ASH6wkNdy1FmslQBQL6pSMF93KBRxqqjk+5PQ2rKSljarAZESskGQgAKCdxVwKM3HgMMmcqvuF8nzcV+Ie8bc7ZhrN9wEto1QDKrIaHTeW2Hud4UWiBxeJJivsEWf1CuGmwBVsVebgA5OvOWAJzAUcD5QYgZ34OLz67Ii4yB+fN9fXFa1xunZB6bvO8OitGdntw1SJATPys/bi5B0cNrhKRyFdNTjXwq3NXLSyFQB+4ANk9htMo5mqphZCbvwZT9UQNtpb4c4UBTZJSJDFEquh2wKugOjVSxjqCH5FWyAyHWIcCFZj9mQm5/WaDozg6qm9SbYMgHIcYAxL/cGklbCOjWsi9n4zhT1sL9JO5rVIcyjdTBCANSooszBVQ+0ORggEz9R7dd8xjTGhLw0G5FfISc0g//ASKVHh3RuwpTQTi9zGBsQ61E8OJyNApzsPz/uR4NO0P/ha78v07VdkhTbfeIs3AjVBVHc5C3xUtBQ7gkF47cbdkKTKY6IVMOVHUJqPmepVclNNhdIUVMhllc/AoK0hUW8KyxlbrB9omdjpuwJOkkulGc9y0sj7wjodAf0KKZGbRUYjVulu90Wwt1pHcOiYqSs24i5UQHbaQ34P8jMNQyu653A4D/xaXAtHjgrvCKQoNdIGOdjbzQz8F55uIYGF4Pbx1iHUXIDOYCGs3SbIUUbQjwjvbevPh3WsMgSxk8VyVu4zkmPDMSu4DJpId2EBnxeUdl54jvOwBabFcGAEBQzbEbU/mS2chHxqS3eIIiNchAl+u+NrhrpPdPjRKJBEOg3/Kxt8PTRGR9J0s9IcrAaoazIVcOp7YZ6Af8oSHjnxw8Qi85pFz64s7J+N7EQV8ipw4cyHT2Ac+Cp35gxwlfgIdwMhP8T7AcwXshnuxI3M5d4QEzQXWPDQCK7A4KvBj31lGju9Z006L9IK8KREEeX2lKheoRYndB01/A9JH+YCXVzUSQ3kKbKHYXNRxlUgCEBismUtd2yIrjdrbQo2TxR6WhXKMOD66E1KC6JQkkCaXGGu6dCu2BSUKKT6x6yrng86fhx4kPGM2PDIVHqiHl2ut8wMGw5vhbol+Au+n5vikOX7A7niQiVb7QeOBCILYdy2mfYKFNO2TQWYJHIrPaR0Q/EGDIWMq/pUk9IdHtaS2jYUmgOQ+5LdXaRSfp1jpA4nZyf+DMTtqZS/NPamBm6yuy2xtaWDIRwrfqGL1i7ZAFgQwE3Xk8sK24WWwZuCX0oUdIuwpgL9xuU7eUQitxBikUiwAXftJglEgx+0f0t6CL/alY1JXX/WXbhk1dEdU8ar5gW5T7bsUE5Sj0N+2QHnRJkRVnMXeAqCwRNwClSSrGS5qNx6EAIC7+2BUUX3EqJj+tbphu3bqEsLraqUcOKmtxb+r3vbfA+ZCNJ5SIAABPfYDNyBvjsnS3Lp9+WqEjWoYCkNju/XOYTMrVNmCWVem52nh5Om9WkVJVr9NRzYSJLdqWEszjNXtAAWKUo17sWFB3sH+ZGz3KexBcoon8J/LNEHDaFs9q9+MuzGoHls0Cpsq7YXNHptzD3JPoGsNNh9UI60X1/NfazkTf7dg64DtBmkqnB5bzdxJc/WunRpEQ8Fj/QUFsXfFBEG0wb4Prsu2sFWDKeZWJG1syPFSh+Rb8C5QlBFxGN2HlyR+X8RYzQBpE9Y3rl+7DXIanboNUS6xVLmmADZ1r7i+oqpoiy1U2mH/36ERxfZbUeR61yLStb5QUXgmgAFiUcm0MmWd0haOHyXYfFSJon7bY3YgMOuhIwdoxSHRy7RdNiEZNS/pZIE6E1BO0e+YtlPPkhtKdvHqLHneMe2mhqDJqP+jpyS0kGxEGSwIzAeHzVhHYGjW3F1hVRoVfSFSvFki5YqxwuvjJOBA8HAFpXBhpJMWVbELtp3cIuPcpe2FO2AXFtiNQKKWc1beGOuEd63yZsKbq67jyinaB09JsTU1DJ+KZSpF/hexBJGR6bYQ3TIpuie4MXOnIqX83Z9fi8+jHVncgFULmKb0vlQOQiEAzQe7Sr4BvRDKjX5hVp7M4bqE3qzNFVXRAMTBDEaLERbTdYhJaecL/6Cgpv38TXO4uphI4SSCSxfcwIvJ6fC/pwc3X6y8tK/dhN0fTavBWLqNhd7jonVEd364iIr4Eyse8NrWyCohb7o7BLUG+cKsFxY7KGeEa+tL8URPPIX7ifUoGet+lj9gnxQj8Ap5URDmYJSdYFUcMX21SoIKUtV2a4Lbd1ydPjB6H6pk1JLmVAI24IrBa/v5s/H/vOjbzy+e4cpOFOv7X/CBXtjJzdUBASDpJwPnoP/1P8qdKfdDI1ZO0x7cJDebg5tkfJP0AVo6SxllsW0hkkpNWm0UUm1PbH9yNJqCuMUBdwW6XqoX5cIDfMwvq5z9X3iUwNDRMWr85BgvgLv1DS2IwKViaaN4oJeKz5CgQh9Bc15ThRAPYhRXekNigDAhjY5Xednfrcy/4IEL+PfL7QavjG0uhzvVMk5V+kElb2uRopJRvkS9tKpPIYSdQVDe8PX0ko7Q+EJjq74rVLXi0+lVUa1re0mdrhZCVN8K60W7EnvFEKTYtugZyMGXr5hTf8SzCxDmruN0ayZGaPDASDmOg8fRPuHJqjxkzqHNGltuH5+Xm7MGP78O7osx1AEzQGnMSxn9Oxj67i0bnoA/90kTIcjMj/mhBS5QGKfMNk/okBmOPXQhUQIuwojD+ZYH8Yo7eK6plYrNE2TptyEqN0CtsmkDngGbT/rOgf18/OyQrq1BwxdsnuTNhAGOf/Xh+vTt277WIaNvU5Gl/GnhEhQJk9HwaJpbi5uwHpomKhJXrwe1CLznL0M6JphXcT+rGgTEHlgVtT4+Pj7+9dfh48dPnjy1KiMxmRgWyQSYjJaGTQ/wcU+4PjbuYU8x1lPoB+rUGOzxqtkNyVc9SSaPp7mZmlINOkXjVDxDEzdgR782zFOOoeYOHnT9ZxCPUbOS7D8dHt2E5tE5zLpU336Bx1FZ7fiJiavRiSK9XMAM1GYwszXqGqiUbmfQAKGAOmdndvexyZKfwyuFptqIgTiF+jADJqRsJJSVgO+BxtujhObygDEpOmbsB5hgquBTMfQwpXnmITYcbaP69HBDtVs9wUNGe1QrhyjI0qib01hqZqsIIRSG5i4VdlrFenYJPMlxTPvNYbmZrlmEL8oafEVDYKCnAGZi0SBAlyt/6bO/aJ9dPPiqHjQnLv0ArwSOHFZ6X434mwhVk5iUaqNCgmv1jarcCp4EYkYyDi5U6x1cDRhPU2k66F7u+MyNAshKhrySahLT+7Zsm+FDc+9dJNxghszzKM3Bu5x6ubv1WKCnlsmiAChzeRjiYWp1TCgpum+lAFIFoL4yf73ca2k4+YEO7hQLIbGSrmWEeD/3njz9DX0NWVX7yVMjNuxVdaGVFG41rAMwXixIXYyJm/YBoViNOBq5J3X5j5qigMhd+vog7Z+J3Tw1gqj7DgG31pOKGBQJJ7D24gqCIl9mFMQ+AFzshDIDBDkxhk/RV2l2oq9CIlsRqea2x1P+A/OWw1vnrSsigmslxMuW0v/Dkgfjyt2EMGOA6app3Odi6YchFrzxeEWuiuQnzekIUW6kUO5ONajVMnmplMZ5Zq12GI6Vnr62YnWQHXihl43H2PddNpYkARw3pnr6vblDLlBWhZng7bQBaLJSq4Dbrx+Sq4xqP23ZoxKSjvx2FVMreciOMq/L3ZWKv3cXcIzwk+51YN9exNUc22NuN8dXBHrtPPs+vu3mHa0b+LOiE6GRvMWDrkUBkSdDo9OziwbrZ6xW0GIPmPWbVRXJImmB5CGhkytIYF028e33SWYLNzAmJhRNrhTz6lOX9yRkZyRVAKR8kWaJrj/iQjh9oBJJzNSwDlz2sK6lrw69R9ITRoA5ZHmFM3eK97ximeqUhdTIKWqmNpZZ81oj+5mVpcS+gUwf5QLjhLGf8UIEwk1lBIxinyCYDyELQSvaygFTdVrCwryQpU6NlzGAtuZmqbTQApWD542a3aXV9plwTA6HMxZAuKO4BWj+bbyoSZCBJImdC/V1BtXuVT0tHwIx3koEwbi9DVgRuxTyw3SM2M4vXj8IC0F/DosFJxxbOQ2Kv14hApUAXYvDvRG6OkxqhuT5qKoJ6WEKVtTQzTd4KHpcfHHlrG/x0qYSooM7UkeDhwcxnKZ0C8NgForapwOt5w6J9YAQmx5zCOSpD2Pfk+LVPMDeJ+p6zMvW623zI406FQURFg0w/Xe+BWgEvMil74RoHwpZAxwtwV/ec/IWnRb2+2HeB1F6WwPBpgfyErsoqOtXV2/0R7HYMydeo5NQn8jSHtCXhwCN9vunmsNE8ovORIsatncwsFWPytY8t4+/b5IV/LlrOlII+EHfXkDOfNNNowysa9k1w4G/sQ0eYBx+qD1nNzfdRwn8uela9d6O0XXZ2WEZVGsEBlXHRJYbs+GfirJRbWZdbv/2GVEwmhFPbntg6oqpqZuThslwo/UavRueArof7/Hfifh7hB9/bQqgG5UV25Y7qHuNW2/XweSm1SvwVc2e7ni29I2pbuir4yttRqj9xMCz1dHJM055xbh72D0h8hFNOzeK6Y3aQh2F7fzC5eTzv6bqlDiWGxBhWxxH3tUdlSd8H5iekpDq7JXh424+GYRLbWe5S143E08cN6EZRsPj+3PbPCVrn6BHLWP9wTPYOs00dxUlAr97Lj7C0I3uNhzAGbva0y2KsaXVw88ua7FHtQ2sqo56/nsN4W7mFMefy680BhqlLhUd9cks0cEZdUV5rLpcSL5EfdvBK5KB3Qv4YULvaZF/N83qcLrSZDAprTDf7Fjwt3dEUQonJBGYqyPKfnuckf++1wDizzCCba93J2TG4OJ8ObGwGbxXrKnQD++1puYhAW01i3HTxrGZIrjvdHxsMWKQPJtRjWI2ww/RZzNdo1CfsHf+H1jeOxM="
+scpt="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"
 tmpdir=$(python -c "import tempfile; print tempfile.mkdtemp()")
 python -c "import binascii,zlib;\
            out=open('${tmpdir}/py.py', 'w'); print >> out, zlib.decompress(binascii.a2b_base64('${py}')); \
@@ -28,18 +28,16 @@ cd $tmpdir
 
 # fetch arXiv bibcodes from BibDesk using an applescript
 bibcodes=$(cat << EOF | osascript -
-tell application "BibDesk"
-    tell document 1
-        set bibcodes to {}
-        repeat with thePub in publications
-            if (count (every field of thePub whose name is "Adsurl" and (value contains "arxiv" or value contains "astro.ph"))) > 0 then
-                -- get bibcode from ADSurl
-                set ADSurl to (value of every field of thePub whose name is "Adsurl")
-                set AppleScript's text item delimiters to "/"
-                set end of bibcodes to last text item of text item 1 of ADSurl
-            end if
-        end repeat
-    end tell
+tell document 1 of application "BibDesk"
+	set bibcodes to {}
+	repeat with thePub in publications
+		if (count (every field of thePub whose name is "Adsurl" and (value contains "arxiv" or value contains "astro.ph"))) > 0 then
+			-- get bibcode from ADSurl
+			set ADSurl to (value of every field of thePub whose name is "Adsurl")
+			set AppleScript's text item delimiters to "/"
+			set end of bibcodes to last text item of text item 1 of ADSurl
+		end if
+	end repeat
 end tell
 set AppleScript's text item delimiters to " "
 return bibcodes as text
@@ -47,7 +45,7 @@ EOF
 )
 
 # check for changed bibcodes
-python -c "print 'Checking %i ArXiv entries for changes...' % (len('${bibcodes}'.strip().split()))"
+python -c "import math;l=len('${bibcodes}'.strip().split()); print 'Checking %i ArXiv entries for changes...\n(to prevent ADS flooding this will take a while, check back in around %i minutes)' % (l, math.ceil(l*10./60.))"
 python py.py $bibcodes
 # python py.py $bibcodes --debug # DEBUG MODE
 
@@ -64,48 +62,80 @@ if [ "$continue" != "Y" ] && [ "$continue" != "y" ]
 then exit
 fi
 
+echo "To prevent ADS flooding, we will wait 1 minute between each query, so go drink a coffee."
 # update bibcodes
 for bibcode in `cat changed_arxiv`; do
     echo "Updating $bibcode..."
     # delete previous arXiv version explicitely
     # the automated same author/title check fails a lot
     cat << EOF | osascript -
-tell application "BibDesk"
-    tell document 1
-        set pub2delete to {}
-        repeat with thePub in publications
-            if (count (every field of thePub whose name is "Adsurl" and (value contains "${bibcode}"))) > 0 then
-                set AppleScript's text item delimiters to {"{","}"}
-                set theTitle to (title of thePub)
-                set end of pub2delete to every text item of theTitle
-            end if
-        end repeat
-        set AppleScript's text item delimiters to ""
-        repeat with theTitle in pub2delete
-            set theTitle to theTitle as text
-            repeat with thePub in (search for theTitle)
-                tell thePub
-                    --remove PDFs
-                    repeat with theFile in linked files
-                        if (theFile as string) ends with ".pdf" then
-                            tell application "Finder"
-                                delete file theFile
-                            end tell
-                        end if
-                    end repeat
-                end tell
-                delete thePub
-            end repeat
-        end repeat
-    end tell
+on safeDelete(thePub)
+	tell document 1 of application "BibDesk"
+		tell thePub
+			--remove PDFs
+			repeat with theFile in (linked files whose POSIX path does not contain "_skim_")
+				if POSIX path of theFile ends with ".pdf" then
+					-- keep backup with Skim notes
+					if Skim notes of theFile is not {} then
+						tell application "Finder"
+							set theSuffix to 1
+							set thePath to (container of file theFile as string)
+							set AppleScript's text item delimiters to "."
+							set tmpName to items 1 thru -2 of (text items of (name of file theFile as string)) as string
+							set AppleScript's text item delimiters to ""
+							-- find a non-existing backup name
+							repeat
+								set backupName to tmpName & "_skim_" & theSuffix & ".pdf"
+								if not (item (thePath & backupName) exists) then exit repeat
+								set theSuffix to theSuffix + 1
+							end repeat
+							-- change file name (BibDesk will properly reference it automatically)
+							set name of file theFile to backupName
+						end tell
+						-- delete PDFs without Skim notes
+					else
+						tell application "Finder"
+							delete file theFile
+						end tell
+					end if
+				end if
+			end repeat
+		end tell
+		delete thePub
+	end tell
+end safeDelete
+
+tell document 1 of application "BibDesk"
+	set pub2delete to {}
+	repeat with thePub in publications
+		if (count (every field of thePub whose name is "Adsurl" and (value contains "${bibcode}"))) > 0 then
+			set AppleScript's text item delimiters to {"{", "}"}
+			set theTitle to (title of thePub)
+			set end of pub2delete to every text item of theTitle
+		end if
+	end repeat
+	set AppleScript's text item delimiters to ""
+	repeat with theTitle in pub2delete
+		set theTitle to theTitle as text
+		repeat with thePub in (search for theTitle)
+			my safeDelete(thePub)
+		end repeat
+	end repeat
 end tell
 EOF
     osascript scpt.scpt `python py.py ${bibcode}`
-    sleep 300
+    sleep 60
 done
 
 #clean up
 cd -
 rm -rf $tmpdir
+
+
+
+
+
+
+
 
 

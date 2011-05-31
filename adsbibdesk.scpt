@@ -30,6 +30,72 @@ on growlNotification(titlestr, descstr)
 	end tell
 end growlNotification
 
+on safeDelete(thePub)
+	tell document 1 of application "BibDesk"
+		tell thePub
+			--remove PDFs
+			repeat with theFile in (linked files whose POSIX path does not contain "_skim_")
+				if POSIX path of theFile ends with ".pdf" then
+					-- keep backup with Skim notes
+					if Skim notes of theFile is not {} then
+						tell application "Finder"
+							set theSuffix to 1
+							set thePath to (container of file theFile as string)
+							set AppleScript's text item delimiters to "."
+							set tmpName to items 1 thru -2 of (text items of (name of file theFile as string)) as string
+							set AppleScript's text item delimiters to ""
+							-- find a non-existing backup name
+							repeat
+								set backupName to tmpName & "_skim_" & theSuffix & ".pdf"
+								if not (item (thePath & backupName) exists) then exit repeat
+								set theSuffix to theSuffix + 1
+							end repeat
+							-- change file name (BibDesk will properly reference it automatically)
+							set name of file theFile to backupName
+						end tell
+						-- delete PDFs without Skim notes
+					else
+						tell application "Finder"
+							delete file theFile
+						end tell
+					end if
+				end if
+			end repeat
+		end tell
+		delete thePub
+	end tell
+end safeDelete
+
+on findSkimFiles(thePub)
+	tell document 1 of application "BibDesk"
+		tell thePub
+			repeat with theFile in (linked files whose POSIX path does not contain "_skim_")
+				set AppleScript's text item delimiters to "/"
+				set fileName to last text item of POSIX path of theFile
+				set AppleScript's text item delimiters to "."
+				set theName to items 1 thru -2 of (text items of fileName) as string
+				tell application "Finder"
+					-- POSIX path may work here also...
+					set AppleScript's text item delimiters to ":"
+					set tmp to text items 2 thru -1 of (container of file theFile as string)
+					set AppleScript's text item delimiters to "/"
+					set thePath to "/" & (tmp as string)
+					-- use shell (applescript is way too slow for this)
+					set cmd to "ls " & thePath & "*" & theName & "*skim*pdf | xargs"
+					try
+						set AppleScript's text item delimiters to " "
+						set skimFiles to text items of (do shell script cmd)
+						set AppleScript's text item delimiters to ""
+					on error
+						set skimFiles to {}
+					end try
+				end tell
+			end repeat
+		end tell
+	end tell
+	return skimFiles
+end findSkimFiles
+
 on run input
 	
 	set AppleScript's text item delimiters to " "
@@ -42,56 +108,48 @@ on run input
 	set theBibEntry to (text item 5 of input)
 	set AppleScript's text item delimiters to ""
 	
-	tell application "BibDesk"
-		tell document 1
-			--searchs for already existent publication with exactly the same title and first author
-			if (count (search for theTitle)) > 0 then
-				--delete old one
-				repeat with thePub in (search for theTitle)
-					if (count (authors of thePub)) > 0 and name of first author of thePub contains theAuthor then
-						tell thePub
-							--remove PDFs
-							repeat with theFile in linked files
-								if (theFile as string) ends with ".pdf" then
-									tell application "Finder"
-										delete file theFile
-									end tell
-								end if
-							end repeat
-						end tell
-						delete thePub
-						my growlNotification("Duplicate publication removed", "\"" & theTitle & "\"")
-					end if
-				end repeat
+	tell document 1 of application "BibDesk"
+		-- searchs for already existent publication with exactly the same title and first author
+		if (count (search for theTitle)) > 0 then
+			--delete old one
+			repeat with thePub in (search for theTitle)
+				if (count (authors of thePub)) > 0 and name of first author of thePub contains theAuthor then
+					my safeDelete(thePub)
+					my growlNotification("Duplicate publication removed", "\"" & theTitle & "\"")
+				end if
+			end repeat
+		end if
+
+		-- add new publication
+		set thePub to first item of (import from theBibEntry)
+		tell thePub
+			set the cite key to generated cite key as string
+			set myCiteKey to cite key
+			-- old scanned articles
+			if theAbstract starts with "http://" then
+				make new linked URL with data (theAbstract as string) at end of linked URLs
+			else
+				set the abstract to theAbstract as string
 			end if
-			
-			--add new publication
-			set thePub to first item of (import from theBibEntry)
-			tell thePub
-				set the cite key to generated cite key as string
-				set myCiteKey to cite key
-				-- old scanned articles
-				if theAbstract starts with "http://" then
-					make new linked URL with data (theAbstract as string) at end of linked URLs
-				else
-					set the abstract to theAbstract as string
+			-- file found?
+			if thePDFFile ends with ".pdf" then
+				add (POSIX file thePDFFile) to beginning of linked files
+				auto file
+				-- this is not a file, but rather an URL
+			else if thePDFFile is not "failed" then
+				-- only add it if no DOI link present (they are very probably the same)
+				if (value of field "doi" = "") then
+					make new linked URL with data (thePDFFile as string) at end of linked URLs
 				end if
-				--file found?
-				if thePDFFile ends with ".pdf" then
-					add (POSIX file thePDFFile) to beginning of linked files
-					auto file
-					-- this is not a file, but rather an URL
-				else if thePDFFile is not "failed" then
-					-- only add it if no DOI link present (they are very probably the same)
-					if (value of field "doi" = "") then
-						make new linked URL with data (thePDFFile as string) at end of linked URLs
-					end if
-				end if
-			end tell
+			end if
+			-- add old Skim files
+			repeat with skimFile in my findSkimFiles(thePub)
+				make new linked file with data skimFile at end of linked files
+			end repeat
 		end tell
 	end tell
 	
-	--growl
+	-- growl
 	my growlNotification("New publication added", "\"" & theTitle & "\" as " & myCiteKey)
 	
 end run
