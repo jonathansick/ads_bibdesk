@@ -26,22 +26,29 @@ Input may be one of the following:
 - arXiv abstract page
 - arXiv identifier
 """
-import cgi
+import sys
 import os
 import re
-import subprocess
-import sys
 import time
 import optparse
 import tempfile
-import urllib, urllib2
+import socket
+
+import cgi
+import urllib2
 import urlparse
+
+import subprocess as sp
 from HTMLParser import HTMLParser
 from htmlentitydefs import name2codepoint
 
+# default timeout for url calls
+socket.setdefaulttimeout(10)
 
 def main():
-    """docstring for main"""
+    """
+    Parse options and launch main loop
+    """
     parser = optparse.OptionParser()
     parser.add_option('-d', '--debug', dest="debug", default=False, action="store_true")
     options, articleID = parser.parse_args()
@@ -55,14 +62,14 @@ def main():
     if len(articleID) > 1:
         changed = open('changed_arxiv', 'w')
         for n, bibcode in enumerate(articleID):
+            # sleep for 10 seconds, to prevent ADS flooding
+            time.sleep(10)
             if prefs['debug']:
                 print "bibcode", bibcode
             # these are ADS bibcodes by default
             adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % bibcode, '', ''))
             if prefs['debug']:
                 print "adsURL", adsURL
-            if adsURL is None:
-                continue
             # parse the ADS HTML file
             ads = ADSHTMLParser(prefs=prefs)
             ads.parse(adsURL)
@@ -78,8 +85,6 @@ def main():
             else:
                 print '%i. %s has not changed' % (n+1, bibcode)
                 continue
-            # sleep for 5 seconds, to prevent ADS flooding
-            time.sleep(5)
         changed.close()
 
     # normal call
@@ -92,8 +97,8 @@ def main():
         # parse the ADS HTML file
         ads = ADSHTMLParser(prefs=prefs)
         ads.parse(adsURL)
-        #pdf local file, title, first author, abstract, bibtex code
-        #UTF-8 encoded
+        # pdf local file, title, first author, abstract, bibtex code
+        # UTF-8 encoded
         print ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
                                                         ads.title, '|||',
                                                         ads.author[0], '|||',
@@ -108,13 +113,13 @@ def parseURL(in_url, prefs):
         adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % in_url, '', ''))
         if prefs['debug']:
             print 'ADS', adsURL
-        ads = urllib.urlopen(adsURL).read()
+        ads = urllib2.urlopen(adsURL).read()
         # arXiv identifier?
         if 'No bibcodes' in ads:
             adsURL = urlparse.urlunsplit(('http', 'arxiv.org', 'abs/%s' % in_url, '', ''))
             if prefs['debug']:
                 print 'arXiv', adsURL
-            if 'not recognized' in urllib.urlopen(adsURL).read():
+            if 'not recognized' in urllib2.urlopen(adsURL).read():
                 # something's wrong
                 return None
             else:
@@ -255,7 +260,7 @@ class BibTex:
         """
         Create BibTex instance from ADS BibTex URL
         """
-        bibtex = urllib.urlopen(url).readlines()
+        bibtex = urllib2.urlopen(url).readlines()
         bibtex = ' '.join([l.strip() for l in bibtex]).strip()
         bibtex = bibtex[re.search('@[A-Z]+\{', bibtex).start():]
         self.type, self.bibcode, self.info = self.parsebib(bibtex)
@@ -272,6 +277,8 @@ class BibTex:
         info = dict([(i[1:].replace('=', '').strip(), j.strip()) for i, j in zip(s[1::2], s[2::2])])
         return r.group('type'), r.group('bibcode'), info
 
+class ADSException(Exception):
+    pass
 
 class ADSHTMLParser(HTMLParser):
 
@@ -295,7 +302,7 @@ class ADSHTMLParser(HTMLParser):
         http://www.w3.org/Math/characters/byalpha.html
         """
         w3 = 'http://www.w3.org/Math/characters/byalpha.html'
-        mathml = re.search('(?<=<pre>).+(?=</pre>)', urllib.urlopen(w3).read(), re.DOTALL).group()
+        mathml = re.search('(?<=<pre>).+(?=</pre>)', urllib2.urlopen(w3).read(), re.DOTALL).group()
         entities = {}
         for l in mathml[:-1].split('\n'):
             s = l.split(',')
@@ -309,7 +316,12 @@ class ADSHTMLParser(HTMLParser):
         """
         Feed url into our own HTMLParser and parse found bibtex
         """
-        self.feed(url.startswith('http') and urllib.urlopen(url).read() or url)
+        try:
+            self.feed(url.startswith('http') and urllib2.urlopen(url).read() or url)
+        except urllib2.URLError, err:
+            if self.prefs['debug']:
+                print '%s timed out' % url
+            raise ADSException(err)
         #parse bibtex
         if self.prefs['debug']:
             print "ADSHTMLParser links:",
@@ -386,9 +398,9 @@ class ADSHTMLParser(HTMLParser):
             return 'not downloaded'
 
         def filetype(filename):
-            return subprocess.Popen('file %s' % filename, shell=True,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE).stdout.read()
+            return sp.Popen('file %s' % filename, shell=True,
+                            stdout=sp.PIPE,
+                            stderr=sp.PIPE).stdout.read()
 
         #refereed
         if 'article' in self.links:
@@ -397,8 +409,7 @@ class ADSHTMLParser(HTMLParser):
             pdf = tempfile.mktemp() + '.pdf'
             # test for HTTP auth need
             try:
-                tmp = urllib2.urlopen(url)
-                open(pdf, 'wb').write(tmp.read())
+                open(pdf, 'wb').write(urllib2.urlopen(url).read())
             except urllib2.HTTPError:
                 # dummy file
                 open(pdf, 'w').write('dummy')
@@ -413,8 +424,8 @@ class ADSHTMLParser(HTMLParser):
                 pdf = tempfile.mktemp() + '.pdf'
                 cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; wget -O adsbibdesk.pdf \\"%s\\"\"' % (self.prefs['ssh_user'], self.prefs['ssh_server'], url)
                 cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' % (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
-                subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-                subprocess.Popen(cmd2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+                sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE).communicate()
+                sp.Popen(cmd2, shell=True, stdout=sp.PIPE, stderr=sp.PIPE).communicate()
                 if 'PDF document' in filetype(pdf):
                     return pdf
 
@@ -423,7 +434,7 @@ class ADSHTMLParser(HTMLParser):
             #arXiv page
             url = self.links['preprint']
             mirror = None
-            for line in urllib.urlopen(url):
+            for line in urllib2.urlopen(url):
                 if '<h1><a href="/">' in line:
                     mirror = re.search('<h1><a href="/">(.*ar[xX]iv.org)', line)
                 elif 'dc:identifier' in line:
@@ -436,7 +447,7 @@ class ADSHTMLParser(HTMLParser):
                         url = urlparse.urlunsplit((url.scheme, self.prefs['arxiv_mirror'], url.path, url.query, url.fragment))
                     #get arXiv PDF
                     pdf = tempfile.mktemp() + '.pdf'
-                    urllib.urlretrieve(url.replace('abs', 'pdf'), pdf)
+                    open(pdf, 'wb').write(urllib2.urlopen(url.replace('abs', 'pdf')).read())
                     if 'PDF document' in filetype(pdf):
                         return pdf
                     else:
