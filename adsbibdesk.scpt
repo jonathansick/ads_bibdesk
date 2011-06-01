@@ -34,31 +34,29 @@ on safeDelete(thePub)
 	tell document 1 of application "BibDesk"
 		tell thePub
 			--remove PDFs
-			repeat with theFile in (linked files whose POSIX path does not contain "_skim_")
-				if POSIX path of theFile ends with ".pdf" then
-					-- keep backup with Skim notes
-					if Skim notes of theFile is not {} then
-						tell application "Finder"
-							set theSuffix to 1
-							set thePath to (container of file theFile as string)
-							set AppleScript's text item delimiters to "."
-							set tmpName to items 1 thru -2 of (text items of (name of file theFile as string)) as string
-							set AppleScript's text item delimiters to ""
-							-- find a non-existing backup name
-							repeat
-								set backupName to tmpName & "_skim_" & theSuffix & ".pdf"
-								if not (item (thePath & backupName) exists) then exit repeat
-								set theSuffix to theSuffix + 1
-							end repeat
-							-- change file name (BibDesk will properly reference it automatically)
-							set name of file theFile to backupName
-						end tell
-						-- delete PDFs without Skim notes
-					else
-						tell application "Finder"
-							delete file theFile
-						end tell
-					end if
+			repeat with theFile in (linked files whose POSIX path does not contain "_skim_" and POSIX path ends with ".pdf")
+				-- keep backup with Skim notes
+				if Skim notes of theFile is not {} then
+					tell application "Finder"
+						set theSuffix to 1
+						set thePath to (container of file theFile as string)
+						set AppleScript's text item delimiters to "."
+						set tmpName to items 1 thru -2 of (text items of (name of file theFile as string)) as string
+						set AppleScript's text item delimiters to ""
+						-- find a non-existing backup name
+						repeat
+							set backupName to tmpName & "_skim_" & theSuffix & ".pdf"
+							if not (item (thePath & backupName) exists) then exit repeat
+							set theSuffix to theSuffix + 1
+						end repeat
+						-- change file name (BibDesk will properly reference it automatically)
+						set name of file theFile to backupName
+					end tell
+					-- delete PDFs without Skim notes
+				else
+					tell application "Finder"
+						delete file theFile
+					end tell
 				end if
 			end repeat
 		end tell
