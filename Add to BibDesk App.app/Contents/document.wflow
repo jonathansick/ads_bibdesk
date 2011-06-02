@@ -794,13 +794,23 @@ on growlNotification(titlestr, descstr)
 	end tell
 end growlNotification
 
+on hasAnnotations(theFile)
+	try
+		set cmd to "strings " &amp; quoted form of theFile &amp; " | grep  -E 'Contents[ ]{0,1}\\('"
+		set theOutput to do shell script cmd
+	on error
+		set theOutput to ""
+	end try
+	return theOutput is not ""
+end hasAnnotations
+
 on safeDelete(thePub)
 	tell document 1 of application "BibDesk"
 		tell thePub
 			--remove PDFs
-			repeat with theFile in (linked files whose POSIX path does not contain "_skim_" and POSIX path ends with ".pdf")
+			repeat with theFile in (linked files whose POSIX path does not contain "_notes_" and POSIX path ends with ".pdf")
 				-- keep backup with Skim notes
-				if Skim notes of theFile is not {} then
+				if Skim notes of theFile is not {} or my hasAnnotations(POSIX path of theFile) then
 					tell application "Finder"
 						set theSuffix to 1
 						set thePath to (container of file theFile as string)
@@ -809,14 +819,14 @@ on safeDelete(thePub)
 						set AppleScript's text item delimiters to ""
 						-- find a non-existing backup name
 						repeat
-							set backupName to tmpName &amp; "_skim_" &amp; theSuffix &amp; ".pdf"
+							set backupName to tmpName &amp; "_notes_" &amp; theSuffix &amp; ".pdf"
 							if not (item (thePath &amp; backupName) exists) then exit repeat
 							set theSuffix to theSuffix + 1
 						end repeat
 						-- change file name (BibDesk will properly reference it automatically)
 						set name of file theFile to backupName
 					end tell
-					-- delete PDFs without Skim notes
+					-- delete PDFs without notes
 				else
 					tell application "Finder"
 						delete file theFile
@@ -828,35 +838,32 @@ on safeDelete(thePub)
 	end tell
 end safeDelete
 
-on findSkimFiles(thePub)
+on findAnnotatedFiles(thePub)
 	tell document 1 of application "BibDesk"
 		tell thePub
-			repeat with theFile in (linked files whose POSIX path does not contain "_skim_")
+			repeat with theFile in (linked files whose POSIX path does not contain "_notes_")
+				-- name without extension
 				set AppleScript's text item delimiters to "/"
 				set fileName to last text item of POSIX path of theFile
 				set AppleScript's text item delimiters to "."
 				set theName to items 1 thru -2 of (text items of fileName) as string
 				tell application "Finder"
-					-- POSIX path may work here also...
-					set AppleScript's text item delimiters to ":"
-					set tmp to text items 2 thru -1 of (container of file theFile as string)
-					set AppleScript's text item delimiters to "/"
-					set thePath to "/" &amp; (tmp as string)
-					-- use shell (applescript is way too slow for this)
-					set cmd to "ls " &amp; thePath &amp; "*" &amp; theName &amp; "*skim*pdf | xargs"
-					try
-						set AppleScript's text item delimiters to " "
-						set skimFiles to text items of (do shell script cmd)
-						set AppleScript's text item delimiters to ""
-					on error
-						set skimFiles to {}
-					end try
+					set thePath to quoted form of POSIX path of (container of file theFile as string)
 				end tell
+				-- use shell (applescript is way too slow for this)
+				set cmd to "ls " &amp; thePath &amp; "*" &amp; theName &amp; "*notes*pdf | xargs"
+				try
+					set AppleScript's text item delimiters to " "
+					set annotatedFiles to text items of (do shell script cmd)
+					set AppleScript's text item delimiters to ""
+				on error
+					set annotatedFiles to {}
+				end try
 			end repeat
 		end tell
 	end tell
-	return skimFiles
-end findSkimFiles
+	return annotatedFiles
+end findAnnotatedFiles
 
 on run input
 	
@@ -904,9 +911,9 @@ on run input
 					make new linked URL with data (thePDFFile as string) at end of linked URLs
 				end if
 			end if
-			-- add old Skim files
-			repeat with skimFile in my findSkimFiles(thePub)
-				make new linked file with data skimFile at end of linked files
+			-- add old annotated files
+			repeat with annotatedFile in my findAnnotatedFiles(thePub)
+				make new linked file with data annotatedFile at end of linked files
 			end repeat
 		end tell
 	end tell
