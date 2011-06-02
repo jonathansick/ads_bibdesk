@@ -51,6 +51,7 @@ def main():
     """
     parser = optparse.OptionParser()
     parser.add_option('-d', '--debug', dest="debug", default=False, action="store_true")
+    parser.add_option('-u', '--update_arxiv', default=False, action="store_true")
     options, articleID = parser.parse_args()
 
     # Get preferences from (optional) config file
@@ -59,7 +60,7 @@ def main():
         prefs['debug'] = True
 
     # multiple arguments - bibcodes to compare with ADS
-    if len(articleID) > 1:
+    if options.update_arxiv or len(articleID) > 1:
         changed = open('changed_arxiv', 'w')
         for n, bibcode in enumerate(articleID):
             # sleep for 15 seconds, to prevent ADS flooding

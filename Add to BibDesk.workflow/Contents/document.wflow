@@ -106,6 +106,7 @@ def main():
     """
     parser = optparse.OptionParser()
     parser.add_option('-d', '--debug', dest="debug", default=False, action="store_true")
+    parser.add_option('-u', '--update_arxiv', default=False, action="store_true")
     options, articleID = parser.parse_args()
 
     # Get preferences from (optional) config file
@@ -114,7 +115,7 @@ def main():
         prefs['debug'] = True
 
     # multiple arguments - bibcodes to compare with ADS
-    if len(articleID) &gt; 1:
+    if options.update_arxiv or len(articleID) &gt; 1:
         changed = open('changed_arxiv', 'w')
         for n, bibcode in enumerate(articleID):
             # sleep for 15 seconds, to prevent ADS flooding
@@ -728,31 +729,29 @@ on safeDelete(thePub)
 	tell document 1 of application "BibDesk"
 		tell thePub
 			--remove PDFs
-			repeat with theFile in (linked files whose POSIX path does not contain "_skim_")
-				if POSIX path of theFile ends with ".pdf" then
-					-- keep backup with Skim notes
-					if Skim notes of theFile is not {} then
-						tell application "Finder"
-							set theSuffix to 1
-							set thePath to (container of file theFile as string)
-							set AppleScript's text item delimiters to "."
-							set tmpName to items 1 thru -2 of (text items of (name of file theFile as string)) as string
-							set AppleScript's text item delimiters to ""
-							-- find a non-existing backup name
-							repeat
-								set backupName to tmpName &amp; "_skim_" &amp; theSuffix &amp; ".pdf"
-								if not (item (thePath &amp; backupName) exists) then exit repeat
-								set theSuffix to theSuffix + 1
-							end repeat
-							-- change file name (BibDesk will properly reference it automatically)
-							set name of file theFile to backupName
-						end tell
-						-- delete PDFs without Skim notes
-					else
-						tell application "Finder"
-							delete file theFile
-						end tell
-					end if
+			repeat with theFile in (linked files whose POSIX path does not contain "_skim_" and POSIX path ends with ".pdf")
+				-- keep backup with Skim notes
+				if Skim notes of theFile is not {} then
+					tell application "Finder"
+						set theSuffix to 1
+						set thePath to (container of file theFile as string)
+						set AppleScript's text item delimiters to "."
+						set tmpName to items 1 thru -2 of (text items of (name of file theFile as string)) as string
+						set AppleScript's text item delimiters to ""
+						-- find a non-existing backup name
+						repeat
+							set backupName to tmpName &amp; "_skim_" &amp; theSuffix &amp; ".pdf"
+							if not (item (thePath &amp; backupName) exists) then exit repeat
+							set theSuffix to theSuffix + 1
+						end repeat
+						-- change file name (BibDesk will properly reference it automatically)
+						set name of file theFile to backupName
+					end tell
+					-- delete PDFs without Skim notes
+				else
+					tell application "Finder"
+						delete file theFile
+					end tell
 				end if
 			end repeat
 		end tell
