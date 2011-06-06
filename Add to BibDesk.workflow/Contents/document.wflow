@@ -1,9 +1,9 @@
 <plist version="1.0">
 <dict>
 	<key>AMApplicationBuild</key>
-	<string>162</string>
+	<string>247.1</string>
 	<key>AMApplicationVersion</key>
-	<string>2.0.4</string>
+	<string>2.1.1</string>
 	<key>AMDocumentVersion</key>
 	<string>2</string>
 	<key>actions</key>
@@ -596,9 +596,9 @@ if __name__ == '__main__':
 					<key>1</key>
 					<dict>
 						<key>default value</key>
-						<string>/bin/sh</string>
+						<string />
 						<key>name</key>
-						<string>shell</string>
+						<string>source</string>
 						<key>required</key>
 						<string>0</string>
 						<key>type</key>
@@ -609,9 +609,9 @@ if __name__ == '__main__':
 					<key>2</key>
 					<dict>
 						<key>default value</key>
-						<string />
+						<false />
 						<key>name</key>
-						<string>source</string>
+						<string>CheckedForUserDefaultShell</string>
 						<key>required</key>
 						<string>0</string>
 						<key>type</key>
@@ -635,9 +635,9 @@ if __name__ == '__main__':
 					<key>4</key>
 					<dict>
 						<key>default value</key>
-						<false />
+						<string>/bin/sh</string>
 						<key>name</key>
-						<string>CheckedForUserDefaultShell</string>
+						<string>shell</string>
 						<key>required</key>
 						<string>0</string>
 						<key>type</key>
@@ -649,7 +649,7 @@ if __name__ == '__main__':
 				<key>isViewVisible</key>
 				<true />
 				<key>location</key>
-				<string>251.000000:942.000000</string>
+				<string>503.500000:574.000000</string>
 				<key>nibPath</key>
 				<string>/System/Library/Automator/Run Shell Script.action/Contents/Resources/English.lproj/main.nib</string>
 			</dict>
@@ -771,6 +771,7 @@ end safeDelete
 
 on findAnnotatedFiles(thePub)
 	tell document 1 of application "BibDesk"
+		set annotatedFiles to {}
 		tell thePub
 			repeat with theFile in (linked files whose POSIX path does not contain "_notes_")
 				-- name without extension
@@ -787,13 +788,11 @@ on findAnnotatedFiles(thePub)
 					set AppleScript's text item delimiters to " "
 					set annotatedFiles to text items of (do shell script cmd)
 					set AppleScript's text item delimiters to ""
-				on error
-					set annotatedFiles to {}
 				end try
 			end repeat
 		end tell
+		return annotatedFiles
 	end tell
-	return annotatedFiles
 end findAnnotatedFiles
 
 on run input
@@ -912,7 +911,7 @@ end run</string>
 				<key>isViewVisible</key>
 				<true />
 				<key>location</key>
-				<string>251.000000:759.000000</string>
+				<string>503.500000:391.000000</string>
 				<key>nibPath</key>
 				<string>/System/Library/Automator/Run AppleScript.action/Contents/Resources/English.lproj/main.nib</string>
 			</dict>
@@ -922,7 +921,7 @@ end run</string>
 	</array>
 	<key>connectors</key>
 	<dict>
-		<key>B8C56E3F-0B5C-476C-A568-82C8DE1366A6</key>
+		<key>55C6E059-BD97-496A-8087-B5FC61228A45</key>
 		<dict>
 			<key>from</key>
 			<string>11621988-BE90-4369-A6FC-DACBBFBE4405 - 11621988-BE90-4369-A6FC-DACBBFBE4405</string>
@@ -932,16 +931,75 @@ end run</string>
 	</dict>
 	<key>state</key>
 	<dict>
-		<key>EditorSplitViewPosition</key>
-		<real>0.0</real>
-		<key>MainSplitViewPosition_v2</key>
-		<real>338</real>
+		<key>AMLogTabViewSelectedIndex</key>
+		<integer>1</integer>
+		<key>libraryState</key>
+		<dict>
+			<key>actionsMajorSplitViewState</key>
+			<dict>
+				<key>expandedPosition</key>
+				<real>0.0</real>
+				<key>subviewState</key>
+				<array>
+					<string>0.000000, 0.000000, 381.000000, 756.000000, NO</string>
+					<string>0.000000, 757.000000, 381.000000, -1.000000, NO</string>
+				</array>
+			</dict>
+			<key>actionsMinorSplitViewState</key>
+			<dict>
+				<key>expandedPosition</key>
+				<real>0.0</real>
+				<key>subviewState</key>
+				<array>
+					<string>0.000000, 0.000000, 163.000000, 756.000000, NO</string>
+					<string>164.000000, 0.000000, 217.000000, 756.000000, NO</string>
+				</array>
+			</dict>
+			<key>variablesMajorSplitViewState</key>
+			<dict>
+				<key>expandedPosition</key>
+				<real>0.0</real>
+				<key>subviewState</key>
+				<array>
+					<string>0.000000, 0.000000, 381.000000, 555.000000, NO</string>
+					<string>0.000000, 556.000000, 381.000000, 199.000000, NO</string>
+				</array>
+			</dict>
+			<key>variablesMinorSplitViewState</key>
+			<dict>
+				<key>expandedPosition</key>
+				<real>0.0</real>
+				<key>subviewState</key>
+				<array>
+					<string>0.000000, 0.000000, 163.000000, 555.000000, NO</string>
+					<string>164.000000, 0.000000, 217.000000, 555.000000, NO</string>
+				</array>
+			</dict>
+		</dict>
+		<key>majorSplitViewState</key>
+		<dict>
+			<key>expandedPosition</key>
+			<real>0.0</real>
+			<key>subviewState</key>
+			<array>
+				<string>0.000000, 0.000000, 381.000000, 801.000000, NO</string>
+				<string>382.000000, 0.000000, 1007.000000, 801.000000, NO</string>
+			</array>
+		</dict>
+		<key>minorSplitViewState</key>
+		<dict>
+			<key>expandedPosition</key>
+			<real>143</real>
+			<key>subviewState</key>
+			<array>
+				<string>0.000000, 0.000000, 1007.000000, 629.000000, NO</string>
+				<string>0.000000, 639.000000, 1007.000000, 143.000000, NO</string>
+			</array>
+		</dict>
 		<key>windowFrame</key>
-		<string>{{195, 69}, {840, 1028}}</string>
-		<key>windowFrameTopLeft</key>
-		<string>{{195, 77}, {840, 1028}}</string>
+		<string>{{52, 0}, {1388, 878}}</string>
 		<key>workflowViewScrollPosition</key>
-		<string>{{0, 0}, {502, 932}}</string>
+		<string>{{0, 0}, {1007, 629}}</string>
 	</dict>
 	<key>workflowMetaData</key>
 	<dict>

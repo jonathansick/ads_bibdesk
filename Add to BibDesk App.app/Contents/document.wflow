@@ -840,6 +840,7 @@ end safeDelete
 
 on findAnnotatedFiles(thePub)
 	tell document 1 of application "BibDesk"
+		set annotatedFiles to {}
 		tell thePub
 			repeat with theFile in (linked files whose POSIX path does not contain "_notes_")
 				-- name without extension
@@ -856,13 +857,11 @@ on findAnnotatedFiles(thePub)
 					set AppleScript's text item delimiters to " "
 					set annotatedFiles to text items of (do shell script cmd)
 					set AppleScript's text item delimiters to ""
-				on error
-					set annotatedFiles to {}
 				end try
 			end repeat
 		end tell
+		return annotatedFiles
 	end tell
-	return annotatedFiles
 end findAnnotatedFiles
 
 on run input
