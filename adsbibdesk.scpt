@@ -33,7 +33,9 @@ end growlNotification
 on hasAnnotations(theFile)
 	try
 		set cmd to "strings " & quoted form of theFile & " | grep  -E 'Contents[ ]{0,1}\\('"
-		set theOutput to do shell script cmd
+		tell me
+			set theOutput to do shell script cmd
+		end tell
 	on error
 		set theOutput to ""
 	end try
@@ -88,10 +90,12 @@ on findAnnotatedFiles(thePub)
 					set thePath to quoted form of POSIX path of (container of file theFile as string)
 				end tell
 				-- use shell (applescript is way too slow for this)
-				set cmd to "ls " & thePath & "*" & theName & "*notes*pdf | xargs"
+				set cmd to "ls " & thePath & "*" & theName & "*notes*pdf | xargs | sed 's/.pdf /.pdf;/g'"
 				try
-					set AppleScript's text item delimiters to " "
-					set annotatedFiles to text items of (do shell script cmd)
+					set AppleScript's text item delimiters to ";"
+					tell me
+						set annotatedFiles to text items of (do shell script cmd)
+					end tell
 					set AppleScript's text item delimiters to ""
 				end try
 			end repeat
