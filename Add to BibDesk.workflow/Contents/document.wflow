@@ -737,18 +737,66 @@ on hasAnnotations(theFile)
 	return theOutput is not ""
 end hasAnnotations
 
+-- test if a mac-classic style file path exists
+on pathExists(s)
+	try
+		s as alias
+		return true
+	on error
+		return false
+	end try
+end pathExists
+
+-- given a file (or folder) return a list containing
+--   the path to its parent directory,
+--   its name without its file extension, and
+--   its file extension
+-- http://www.alecjacobson.com/weblog/?p=229
+on parse_file(this_file)
+	set default_delimiters to AppleScript's text item delimiters
+	-- if given file is a folder then strip terminal ":" so as to return
+	-- folder name as file name and true parent directory
+	if last item of (this_file as string) = ":" then
+		set AppleScript's text item delimiters to ""
+		set this_file to (items 1 through -2 of (this_file as string)) as string
+	end if
+	set AppleScript's text item delimiters to ":"
+	set this_parent_dir to (text items 1 through -2 of (this_file as string)) as string
+	set this_name to (text item -1 of (this_file as string)) as string
+	-- default or no extension is empty string
+	set this_extension to ""
+	if this_name contains "." then
+		set AppleScript's text item delimiters to "."
+		set this_extension to the last text item of this_name
+		set this_name to (text items 1 through -2 of this_name) as string
+	end if
+	set AppleScript's text item delimiters to default_delimiters
+	return {this_parent_dir, this_name, this_extension}
+end parse_file
+
 on safeDelete(thePub)
+	set keptPDFs to {}
 	tell document 1 of application "BibDesk"
 		tell thePub
+			-- always keep PDFs marked notes
+			repeat with theFile in (linked files whose POSIX path contains "_notes_" and POSIX path ends with ".pdf")
+				set end of keptPDFs to theFile
+			end repeat
 			--remove PDFs
 			repeat with theFile in (linked files whose POSIX path does not contain "_notes_" and POSIX path ends with ".pdf")
 				-- keep backup with Skim notes
-				if Skim notes of theFile is not {} or my hasAnnotations(POSIX path of theFile) then
+				--  or my hasAnnotations(POSIX path of theFile)
+				-- say theFile as string
+				-- set theNotes to text Skim notes of theFile
+				-- say theNotes
+				if text Skim notes of theFile is not "" then
 					tell application "Finder"
 						set theSuffix to 1
 						set thePath to (container of file theFile as string)
 						set AppleScript's text item delimiters to "."
 						set tmpName to items 1 thru -2 of (text items of (name of file theFile as string)) as string
+						set pathParts to my parse_file(theFile)
+						
 						set AppleScript's text item delimiters to ""
 						-- find a non-existing backup name
 						repeat
@@ -758,6 +806,18 @@ on safeDelete(thePub)
 						end repeat
 						-- change file name (BibDesk will properly reference it automatically)
 						set name of file theFile to backupName
+						set backupPath to thePath &amp; backupName
+						set end of keptPDFs to alias backupPath
+						-- also try to move the .skim file
+						set dirName to item 1 of pathParts
+						set baseName to item 2 of pathParts
+						set skimPath to dirName &amp; ":" &amp; baseName &amp; ".skim"
+						--say skimPath
+						if my pathExists(skimPath) then
+							set skimFile to file skimPath
+							set skimBkupName to baseName &amp; "_notes_" &amp; theSuffix &amp; ".skim"
+							set name of skimFile to skimBkupName
+						end if
 					end tell
 					-- delete PDFs without notes
 				else
@@ -769,38 +829,10 @@ on safeDelete(thePub)
 		end tell
 		delete thePub
 	end tell
+	return keptPDFs
 end safeDelete
 
-on findAnnotatedFiles(thePub)
-	tell document 1 of application "BibDesk"
-		set annotatedFiles to {}
-		tell thePub
-			repeat with theFile in (linked files whose POSIX path does not contain "_notes_")
-				-- name without extension
-				set AppleScript's text item delimiters to "/"
-				set fileName to last text item of POSIX path of theFile
-				set AppleScript's text item delimiters to "."
-				set theName to items 1 thru -2 of (text items of fileName) as string
-				tell application "Finder"
-					set thePath to quoted form of POSIX path of (container of file theFile as string)
-				end tell
-				-- use shell (applescript is way too slow for this)
-				set cmd to "ls " &amp; thePath &amp; "*" &amp; theName &amp; "*notes*pdf | xargs | sed 's/.pdf /.pdf;/g'"
-				try
-					set AppleScript's text item delimiters to ";"
-					tell me
-						set annotatedFiles to text items of (do shell script cmd)
-					end tell
-					set AppleScript's text item delimiters to ""
-				end try
-			end repeat
-		end tell
-		return annotatedFiles
-	end tell
-end findAnnotatedFiles
-
 on run input
-	
 	set AppleScript's text item delimiters to " "
 	set input to (input as text)
 	set AppleScript's text item delimiters to "|||"
@@ -813,16 +845,17 @@ on run input
 	
 	tell document 1 of application "BibDesk"
 		-- searchs for already existent publication with exactly the same title and first author
+		set keptPDFs to {}
 		if (count (search for theTitle)) &gt; 0 then
 			--delete old one
 			repeat with thePub in (search for theTitle)
 				if (count (authors of thePub)) &gt; 0 and name of first author of thePub contains theAuthor then
-					my safeDelete(thePub)
+					set keptPDFs to my safeDelete(thePub)
 					my growlNotification("Duplicate publication removed", "\"" &amp; theTitle &amp; "\"")
 				end if
 			end repeat
 		end if
-
+		
 		-- add new publication
 		set thePub to first item of (import from theBibEntry)
 		tell thePub
@@ -846,9 +879,11 @@ on run input
 				end if
 			end if
 			-- add old annotated files
-			repeat with annotatedFile in my findAnnotatedFiles(thePub)
-				make new linked file with data annotatedFile at end of linked files
-			end repeat
+			--repeat with keptPDF in keptPDFs
+			--set keptPDFAlias to alias keptPDF
+			--make new linked file at end of linked files with keptPDFAlias
+			--add (POSIX file keptPDF) to end of linked files
+			--end repeat
 		end tell
 	end tell
 	
