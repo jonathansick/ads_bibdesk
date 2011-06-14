@@ -53,7 +53,7 @@ if __name__ == '__main__':
         open(workflow, 'w').write(ElementTree.tostring(xml))
 
     # replace into update arxiv script
-    tmp = open(update_arxiv).read()
+    tmp = open(update_arxiv).read()[:-1]
     tmp = re.sub('(?<=py=").*(?="\n)', compress(open('adsbibdesk.py').read()).strip(), tmp)
     tmp = re.sub('(?<=scpt=").*(?="\n)', compress(open('adsbibdesk.scpt').read()).strip(), tmp)
     print >> open(update_arxiv, 'w'), tmp

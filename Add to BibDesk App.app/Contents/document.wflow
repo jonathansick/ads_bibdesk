@@ -794,6 +794,8 @@ on growlNotification(titlestr, descstr)
 	end tell
 end growlNotification
 
+-- check for PDF annotations produced using Preview or Acrobat
+-- with some shell magic not fully tested
 on hasAnnotations(theFile)
 	try
 		set cmd to "strings " &amp; quoted form of theFile &amp; " | grep  -E 'Contents[ ]{0,1}\\('"
@@ -805,16 +807,6 @@ on hasAnnotations(theFile)
 	end try
 	return theOutput is not ""
 end hasAnnotations
-
--- test if a mac-classic style file path exists
-on pathExists(s)
-	try
-		s as alias
-		return true
-	on error
-		return false
-	end try
-end pathExists
 
 -- given a file (or folder) return a list containing
 --   the path to its parent directory,
@@ -849,43 +841,28 @@ on safeDelete(thePub)
 		tell thePub
 			-- always keep PDFs marked notes
 			repeat with theFile in (linked files whose POSIX path contains "_notes_" and POSIX path ends with ".pdf")
-				set end of keptPDFs to theFile
+				set end of keptPDFs to POSIX path of theFile
 			end repeat
 			--remove PDFs
 			repeat with theFile in (linked files whose POSIX path does not contain "_notes_" and POSIX path ends with ".pdf")
 				-- keep backup with Skim notes
-				--  or my hasAnnotations(POSIX path of theFile)
-				-- say theFile as string
-				-- set theNotes to text Skim notes of theFile
-				-- say theNotes
-				if text Skim notes of theFile is not "" then
+				if text Skim notes of theFile is not "" or my hasAnnotations(POSIX path of theFile) then
 					tell application "Finder"
 						set theSuffix to 1
-						set thePath to (container of file theFile as string)
-						set AppleScript's text item delimiters to "."
-						set tmpName to items 1 thru -2 of (text items of (name of file theFile as string)) as string
-						set pathParts to my parse_file(theFile)
-						
-						set AppleScript's text item delimiters to ""
+						set {fPath, fName, fExt} to my parse_file(theFile)
 						-- find a non-existing backup name
 						repeat
-							set backupName to tmpName &amp; "_notes_" &amp; theSuffix &amp; ".pdf"
-							if not (item (thePath &amp; backupName) exists) then exit repeat
+							set backupName to fName &amp; "_notes_" &amp; theSuffix &amp; ".pdf"
+							if not ((fPath &amp; ":" &amp; backupName) exists) then exit repeat
 							set theSuffix to theSuffix + 1
 						end repeat
 						-- change file name (BibDesk will properly reference it automatically)
 						set name of file theFile to backupName
-						set backupPath to thePath &amp; backupName
-						set end of keptPDFs to alias backupPath
+						set end of keptPDFs to POSIX path of (fPath &amp; ":" &amp; backupName)
 						-- also try to move the .skim file
-						set dirName to item 1 of pathParts
-						set baseName to item 2 of pathParts
-						set skimPath to dirName &amp; ":" &amp; baseName &amp; ".skim"
-						--say skimPath
-						if my pathExists(skimPath) then
-							set skimFile to file skimPath
-							set skimBkupName to baseName &amp; "_notes_" &amp; theSuffix &amp; ".skim"
-							set name of skimFile to skimBkupName
+						set skimPath to fPath &amp; ":" &amp; fName &amp; ".skim"
+						if skimPath exists then
+							set name of file skimPath to fName &amp; "_notes_" &amp; theSuffix &amp; ".skim"
 						end if
 					end tell
 					-- delete PDFs without notes
@@ -902,16 +879,13 @@ on safeDelete(thePub)
 end safeDelete
 
 on run input
+	set defaultDelimiters to AppleScript's text item delimiters
 	set AppleScript's text item delimiters to " "
 	set input to (input as text)
 	set AppleScript's text item delimiters to "|||"
-	set thePDFFile to (text item 1 of input)
-	set theTitle to (text item 2 of input)
-	set theAuthor to (text item 3 of input)
-	set theAbstract to (text item 4 of input)
-	set theBibEntry to (text item 5 of input)
-	set AppleScript's text item delimiters to ""
-	
+	set {thePDFFile, theTitle, theAuthor, theAbstract, theBibEntry} to text items of input
+	set AppleScript's text item delimiters to defaultDelimiters
+
 	tell document 1 of application "BibDesk"
 		-- searchs for already existent publication with exactly the same title and first author
 		set keptPDFs to {}
@@ -924,7 +898,7 @@ on run input
 				end if
 			end repeat
 		end if
-		
+
 		-- add new publication
 		set thePub to first item of (import from theBibEntry)
 		tell thePub
@@ -948,19 +922,16 @@ on run input
 				end if
 			end if
 			-- add old annotated files
-			--repeat with keptPDF in keptPDFs
-			--set keptPDFAlias to alias keptPDF
-			--make new linked file at end of linked files with keptPDFAlias
-			--add (POSIX file keptPDF) to end of linked files
-			--end repeat
+			repeat with keptPDF in keptPDFs
+				add (POSIX file keptPDF) to end of linked files
+			end repeat
 		end tell
 	end tell
-	
+
 	-- growl
 	my growlNotification("New publication added", "\"" &amp; theTitle &amp; "\" as " &amp; myCiteKey)
-	
-end run
 
+end run
 </string>
 				</dict>
 				<key>Application</key>
