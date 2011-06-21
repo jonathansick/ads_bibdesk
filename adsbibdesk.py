@@ -136,13 +136,26 @@ class ADSConnector(object):
         if self.adsRead == None and self.urlParts.scheme == '' and "/" not in token:
             self._is_bibcode()
         
+        # If the path lacks http://, tack it on because the token *must*
+        # be a URL now
+        if self.prefs['debug']: print "Token:", self.token
+        if self.adsRead == None and self.token.startswith("http://") is False:
+            self.token = "http://"+self.token
+            if self.prefs['debug']: print "Changed token to", self.token
+            self.urlParts = urlparse.urlsplit(self.token) # supposing it is a URL
+        
         # An abstract page at any ADS mirror site?
-        if self.adsRead == None and self.urlParts.netloc in self.prefs.adsmirrors:
+        if self.prefs['debug']: print self.urlParts
+        pathStart = self.urlParts.path.split("/")[0]
+        if self.adsRead == None and ((self.urlParts.netloc in self.prefs.adsmirrors)
+                or (pathStart in self.prefs.adsmirrors)):
+            if self.prefs['debug']: print "An ADS site?"
             self._is_ads_page()
         
         # An abstract page at arxiv?
         if self.adsRead == None and "arxiv" in self.urlParts.netloc:
             self._is_arxiv_page()
+        
     
     def _is_arxiv(self):
         """Try to classify the token as an arxiv article, either:
