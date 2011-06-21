@@ -478,6 +478,54 @@ class ADSHTMLParser(HTMLParser):
 
         return 'failed'
 
+def test_mnras():
+    prefs = Preferences()
+    prefs['debug'] = True
+    
+    data = '<iframe id="pdfDocument" src="http://onlinelibrary.wiley.com/store/10.1111/j.1365-2966.2010.18174.x/asset/j.1365-2966.2010.18174.x.pdf?v=1&amp;t=gp75eg4q&amp;s=c7ec3f26d269f5f4187799ff6faf44ebe01bbb01" width="100%" height="100%"></iframe>'
+    parser = MNRASParser(prefs)
+    # parser.parse(mnrasURL)
+    parser.feed(data)
+    print parser.getPDFURL()
+
+class MNRASException(Exception):
+    pass
+
+class MNRASParser(HTMLParser):
+    """Handle MNRAS refereed article PDFs.
+    
+    Unlike other journals, the ADS "Full Refereed Journal Article" URL for a
+    MNRAS article points to a PDF embedded in an iframe. This class extracts
+    the PDF url given the ADS link.
+    """
+    def __init__(self, prefs):
+        HTMLParser.__init__(self)
+        self.prefs = prefs
+        self.pdfURL = None
+    
+    def parse(self, url):
+        """Parse URL to MNRAS PDF page"""
+        try:
+            self.feed(url.startswith('http') and urllib2.urlopen(url).read() or url)
+        except urllib2.URLError, err: # HTTP timeout
+            if self.prefs['debug']:
+                print 'MNRAS timed out: %s' % url
+            raise MNRASException(err)
+    
+    def handle_starttag(self, tag, attrs):
+        """
+        def get_mnras_pdf(url):
+           soup = BeautifulSoup(urllib2.urlopen(url))
+           pdfurl = soup.find('iframe')['src']
+           open('mnras.pdf', 'wb').write(urllib2.urlopen(pdfurl).read())
+        """
+        if tag.lower() == "iframe":
+            attrDict = dict(attrs)
+            self.pdfURL = attrDict['src']
+    
+    def getPDFURL(self):
+        return self.pdfURL
 
 if __name__ == '__main__':
-    main()
+    #main()
+    test_mnras()
