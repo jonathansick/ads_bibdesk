@@ -425,6 +425,11 @@ class ADSHTMLParser(HTMLParser):
         # refereed
         if 'article' in self.links:
             url = self.links['article']
+            if "MNRAS" in url: # Special case for MNRAS URLs to deal with iframe
+                parser = MNRASParser(self.prefs)
+                parser.parse(url)
+                url = parser.getPDFURL()
+            
             # try locally
             pdf = tempfile.mktemp() + '.pdf'
             # test for HTTP auth need
@@ -527,5 +532,5 @@ class MNRASParser(HTMLParser):
         return self.pdfURL
 
 if __name__ == '__main__':
-    #main()
-    test_mnras()
+    main()
+    # test_mnras()
