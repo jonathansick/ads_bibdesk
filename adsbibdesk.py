@@ -133,7 +133,7 @@ class ADSConnector(object):
         self._is_arxiv()
         
         # A bibcode from ADS?
-        if self.adsRead == None and self.urlParts.scheme == '':
+        if self.adsRead == None and self.urlParts.scheme == '' and "/" not in token:
             self._is_bibcode()
         
         # An abstract page at any ADS mirror site?
