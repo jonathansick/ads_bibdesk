@@ -148,7 +148,11 @@ def parseURL(in_url, prefs):
 
     # we have a nice ADS abstract page entry
     elif url.netloc in prefs.adsmirrors:
-        adsURL = in_url
+        # use our ADS mirror
+        if 'ads_mirror' in prefs.prefs and prefs['ads_mirror']:
+            adsURL = urlparse.urlunsplit((url.scheme, prefs['ads_mirror'], url.path, url.query, url.fragment))
+        else:
+            adsURL = in_url
 
     # we're in trouble here
     else:
@@ -308,7 +312,7 @@ class ADSHTMLParser(HTMLParser):
         self.title = ''
         self.author = []
 
-        self.prefs = kwargs.get('prefs', {}) # Use an empty dictionary instead... or just create an empty Preferences instance?
+        self.prefs = kwargs.get('prefs', Preferences()).prefs
 
     def mathml(self):
         """
