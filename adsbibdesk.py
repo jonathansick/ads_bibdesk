@@ -39,7 +39,7 @@ import urllib2
 import urlparse
 
 import subprocess as sp
-from HTMLParser import HTMLParser
+from HTMLParser import HTMLParser, HTMLParseError
 from htmlentitydefs import name2codepoint
 
 # default timeout for url calls
@@ -100,7 +100,7 @@ def main():
 
         # parse the ADS HTML file
         ads = ADSHTMLParser(prefs=prefs)
-        ads.parse_connected(connector.adsRead)
+        ads.parse(connector.adsRead)
         # pdf local file, title, first author, abstract, bibtex code
         # UTF-8 encoded
         print ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
@@ -116,7 +116,7 @@ class ADSConnector(object):
     Tokens are tested in order of:
     
     - arxiv identifiers
-    - bibcodes
+    - bibcodes / digital object identifier (DOI)
     - ADS urls
     - arxiv urls
     """
@@ -126,66 +126,59 @@ class ADSConnector(object):
         self.prefs = prefs
         self.adsURL = None # string URL to ADS
         self.adsRead = None # a urllib2.urlopen connection to ADS
-        
         self.urlParts = urlparse.urlsplit(token) # supposing it is a URL
-        
+
         # An arXiv identifier?
-        self._is_arxiv()
-        
+        if self._is_arxiv():
+            if self.prefs['debug']:
+                print "Found arXiv ID", self.token
         # A bibcode from ADS?
-        if self.adsRead == None and self.urlParts.scheme == '' and "/" not in token:
-            self._is_bibcode()
-        
-        # If the path lacks http://, tack it on because the token *must*
-        # be a URL now
-        if self.prefs['debug']: print "Token:", self.token
-        if self.adsRead == None and self.token.startswith("http://") is False:
-            self.token = "http://"+self.token
-            if self.prefs['debug']: print "Changed token to", self.token
+        elif not self.urlParts.scheme and self._is_bibcode():
+            if self.prefs['debug']:
+                print "Found ADS bibcode / DOI", self.token
+        else:
+            # If the path lacks http://, tack it on because the token *must* be a URL now
+            if not self.token.startswith("http://"):
+                self.token = 'http://' + self.token
             self.urlParts = urlparse.urlsplit(self.token) # supposing it is a URL
-        
-        # An abstract page at any ADS mirror site?
-        if self.prefs['debug']: print self.urlParts
-        pathStart = self.urlParts.path.split("/")[0]
-        if self.adsRead == None and ((self.urlParts.netloc in self.prefs.adsmirrors)
-                or (pathStart in self.prefs.adsmirrors)):
-            if self.prefs['debug']: print "An ADS site?"
-            self._is_ads_page()
-        
-        # An abstract page at arxiv?
-        if self.adsRead == None and "arxiv" in self.urlParts.netloc:
-            self._is_arxiv_page()
-        
-    
+
+            # An abstract page at any ADS mirror site?
+            if self.urlParts.netloc in self.prefs.adsmirrors and self._is_ads_page():
+                if self.prefs['debug']:
+                    print "Found ADS page", self.token
+            elif "arxiv" in self.urlParts.netloc and self._is_arxiv_page():
+                if self.prefs['debug']:
+                    print "Found arXiv page", self.token
+
     def _is_arxiv(self):
         """Try to classify the token as an arxiv article, either:
         - new style (YYMM.NNNN), or
         - old style (astro-ph/YYMMNNN)
         :return: True if ADS page is recovered
         """
-        arxivPattern = re.compile('(\d{4,6}.\d{4,6}|astro\-ph\/\d{7})')
+        arxivPattern = re.compile('(\d{4,6}.\d{4,6}|astro\-ph/\d{7})')
         arxivMatches = arxivPattern.findall(self.token)
         if len(arxivMatches) == 1:
             arxivID = arxivMatches[0]
             self.adsURL = urlparse.urlunsplit(('http', self.prefs['ads_mirror'],
-                'cgi-bin/bib_query', 'arXiv:%s' % arxivID, ''))
+                                               'cgi-bin/bib_query', 'arXiv:%s' % arxivID, ''))
             # Try to open the ADS page
             return self._read(self.adsURL)
+        else:
+            return False
     
     def _is_bibcode(self):
-        """Test if the token corresponds to an ADS bibcode"""
+        """Test if the token corresponds to an ADS bibcode or DOI"""
         self.adsURL = urlparse.urlunsplit(('http', self.prefs['ads_mirror'],
-            'abs/%s' % self.token, '', ''))
-        if self.prefs['debug']:
-            print 'ADS url', self.adsURL
+                                           'doi/%s' % self.token, '', ''))
         return self._read(self.adsURL)
-    
+
     def _is_ads_page(self):
         """Test if the token is a url to an ADS abstract page"""
         # use our ADS mirror
         url = self.urlParts
         self.adsURL = urlparse.urlunsplit((url.scheme, self.prefs['ads_mirror'],
-            url.path, url.query, url.fragment))
+                                           url.path, url.query, url.fragment))
         return self._read(self.adsURL)
     
     def _is_arxiv_page(self):
@@ -194,7 +187,7 @@ class ADSConnector(object):
         url = self.urlParts
         arxivid = '/'.join(url.path.split('/')[2:]),
         self.adsURL = urlparse.urlunsplit(('http', self.prefs['ads_mirror'],
-            'cgi-bin/bib_query', 'arXiv:%s' % arxivid, ''))
+                                           'cgi-bin/bib_query', 'arXiv:%s' % arxivid, ''))
         return self._read(self.adsURL)
     
     def _read(self, adsURL):
@@ -204,10 +197,9 @@ class ADSConnector(object):
         """
         try:
             self.adsRead = urllib2.urlopen(adsURL).read()
-            validity = True
+            return True
         except urllib2.HTTPError:
-            validity = False
-        return validity
+            return False
 
 
 class Preferences(object):
@@ -380,53 +372,27 @@ class ADSHTMLParser(HTMLParser):
         return entities
     
     def parse(self, url):
-        """The original, general parser"""
+        """
+        Feed url into our own HTMLParser and parse found bibtex
+        """
         try:
             self.feed(url.startswith('http') and urllib2.urlopen(url).read() or url)
         # HTTP timeout
         except urllib2.URLError, err:
             if self.prefs['debug']:
-                print 'timed out', data
+                print '%s timed out', url
             raise ADSException(err)
-        self._parse()
-    
-    def parse_connected(self, data):
-        """docstring for parse_connected"""
-        try:
-            if self.prefs['debug']:
-                print 'ADS parsing of', data
-            self.feed(data)
-        # HTTP timeout
-        except urllib2.URLError, err:
-            if self.prefs['debug']:
-                print 'timed out', data
-            raise ADSException(err)
-        self._parse()
-    
-    def parse_at_url(self, url):
-        """
-        Feed url into our own HTMLParser and parse found bibtex
-        """
-        try:
-            self.feed(urllib2.urlopen(url).read())
-        # HTTP timeout
-        except urllib2.URLError, err:
-            if self.prefs['debug']:
-                print '%s timed out' % url
-            raise ADSException(err)
-        self._parse()
-    
-    def _parse(self):
-        #parse bibtex
+
         if self.prefs['debug']:
             print "ADSHTMLParser links:",
             print self.links
+
         if 'bibtex' in self.links:
             self.bibtex = BibTex(self.links['bibtex'])
             self.title = re.search('(?<={).+(?=})', self.bibtex.info['title']).group().replace('{', '').replace('}', '')
             self.author = [a.strip() for a in
                            re.search('(?<={).+(?=})', self.bibtex.info['author']).group().split(' and ')]
-
+    
     def handle_starttag(self, tag, attrs):
         #abstract
         if tag.lower() == 'hr' and self.get_abs:
@@ -502,9 +468,14 @@ class ADSHTMLParser(HTMLParser):
             url = self.links['article']
             if "MNRAS" in url: # Special case for MNRAS URLs to deal with iframe
                 parser = MNRASParser(self.prefs)
-                parser.parse(url)
-                url = parser.getPDFURL()
-            
+                try:
+                    parser.parse(url)
+                except MNRASException:
+                    # this probably means we have a PDF directly from ADS, just continue
+                    pass
+                if parser.pdfURL is not None:
+                    url = parser.pdfURL
+
             # try locally
             pdf = tempfile.mktemp() + '.pdf'
             # test for HTTP auth need
@@ -558,6 +529,7 @@ class ADSHTMLParser(HTMLParser):
 
         return 'failed'
 
+    
 def test_mnras():
     prefs = Preferences()
     prefs['debug'] = True
@@ -566,10 +538,12 @@ def test_mnras():
     parser = MNRASParser(prefs)
     # parser.parse(mnrasURL)
     parser.feed(data)
-    print parser.getPDFURL()
+    print parser.pdfURL
+
 
 class MNRASException(Exception):
     pass
+
 
 class MNRASParser(HTMLParser):
     """Handle MNRAS refereed article PDFs.
@@ -591,6 +565,8 @@ class MNRASParser(HTMLParser):
             if self.prefs['debug']:
                 print 'MNRAS timed out: %s' % url
             raise MNRASException(err)
+        except HTMLParseError, err:
+            raise MNRASException(err)
     
     def handle_starttag(self, tag, attrs):
         """
@@ -602,10 +578,8 @@ class MNRASParser(HTMLParser):
         if tag.lower() == "iframe":
             attrDict = dict(attrs)
             self.pdfURL = attrDict['src']
-    
-    def getPDFURL(self):
-        return self.pdfURL
 
+            
 if __name__ == '__main__':
     main()
     # test_mnras()
