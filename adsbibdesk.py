@@ -39,7 +39,7 @@ import urllib2
 import urlparse
 
 import subprocess as sp
-from HTMLParser import HTMLParser
+from HTMLParser import HTMLParser, HTMLParseError
 from htmlentitydefs import name2codepoint
 
 # default timeout for url calls
@@ -468,7 +468,11 @@ class ADSHTMLParser(HTMLParser):
             url = self.links['article']
             if "MNRAS" in url: # Special case for MNRAS URLs to deal with iframe
                 parser = MNRASParser(self.prefs)
-                parser.parse(url)
+                try:
+                    parser.parse(url)
+                except MNRASException:
+                    # this probably means we have a PDF directly from ADS, just continue
+                    pass
                 if parser.pdfURL is not None:
                     url = parser.pdfURL
 
@@ -560,6 +564,8 @@ class MNRASParser(HTMLParser):
         except urllib2.URLError, err: # HTTP timeout
             if self.prefs['debug']:
                 print 'MNRAS timed out: %s' % url
+            raise MNRASException(err)
+        except HTMLParseError, err:
             raise MNRASException(err)
     
     def handle_starttag(self, tag, attrs):
