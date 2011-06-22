@@ -171,7 +171,7 @@ class ADSConnector(object):
     Tokens are tested in order of:
     
     - arxiv identifiers
-    - bibcodes
+    - bibcodes / digital object identifier (DOI)
     - ADS urls
     - arxiv urls
     """
@@ -188,9 +188,9 @@ class ADSConnector(object):
             if self.prefs['debug']:
                 print "Found arXiv ID", self.token
         # A bibcode from ADS?
-        elif not self.urlParts.scheme and '/' not in token and self._is_bibcode():
+        elif not self.urlParts.scheme and self._is_bibcode():
             if self.prefs['debug']:
-                print "Found ADS bibcode", self.token
+                print "Found ADS bibcode / DOI", self.token
         else:
             # If the path lacks http://, tack it on because the token *must* be a URL now
             if not self.token.startswith("http://"):
@@ -223,11 +223,11 @@ class ADSConnector(object):
             return False
     
     def _is_bibcode(self):
-        """Test if the token corresponds to an ADS bibcode"""
+        """Test if the token corresponds to an ADS bibcode or DOI"""
         self.adsURL = urlparse.urlunsplit(('http', self.prefs['ads_mirror'],
-                                           'abs/%s' % self.token, '', ''))
+                                           'doi/%s' % self.token, '', ''))
         return self._read(self.adsURL)
-    
+
     def _is_ads_page(self):
         """Test if the token is a url to an ADS abstract page"""
         # use our ADS mirror
