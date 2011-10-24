@@ -18,16 +18,40 @@
 --  AppleScript to convert downloaded Bibtex and abstract information to a BibDesk entry.
 --  Jonathan Sick, jonathansick@mac.com, August 2007
 
+--http://foolsworkshop.com/applescript/2008/05/an-applescript-replace-text-method/
+on replaceText(find, replace, subject)
+	set prevTIDs to text item delimiters of AppleScript
+	set text item delimiters of AppleScript to find
+	set subject to text items of subject
+
+	set text item delimiters of AppleScript to replace
+	set subject to "" & subject
+	set text item delimiters of AppleScript to prevTIDs
+
+	return subject
+end replaceText
+
+--http://bylr.net/3/2011/09/applescript-and-growl/
 on growlNotification(titlestr, descstr)
-	tell application "System Events"
-		--Growl is running
-		if (count of (every process whose name is "GrowlHelperApp")) > 0 then
-			tell application "GrowlHelperApp"
-				register as application "BibDesk" all notifications {"BibDesk notification"} default notifications {"BibDesk notification"}
-				notify with name "BibDesk notification" title titlestr description descstr application name "BibDesk" priority 0 without sticky
-			end tell
-		end if
-	end tell
+	-- this should work with Growl and GrowlHelperApp
+	tell application "System Events" to set _growl to short name of every process whose creator type is "GRRR"
+	if (count of _growl) > 0 then
+		set osascript to "
+property allNotifications :  {\"BibDesk notification\"}
+property enabledNotifications :  {\"BibDesk notification\"}
+property titlestr : \"" & my replaceText("\"", "\\\"", titlestr) & "\"
+property descstr : \"" & my replaceText("\"", "\\\"", descstr) & "\"
+
+tell application \"" & (first item of _growl) & "\"
+    register as application \"BibDesk\" all notifications allNotifications default notifications enabledNotifications
+    notify with name \"BibDesk notification\" title titlestr description descstr application name \"BibDesk\" priority 0 without sticky
+end tell
+"
+		set shellScript to "osascript -e " & quoted form of osascript & " &> /dev/null &"
+		ignoring application responses
+			do shell script shellScript
+		end ignoring
+	end if
 end growlNotification
 
 -- check for PDF annotations produced using Preview or Acrobat
