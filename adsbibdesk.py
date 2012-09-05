@@ -103,11 +103,18 @@ def main():
         ads.parse(connector.adsRead)
         # pdf local file, title, first author, abstract, bibtex code
         # UTF-8 encoded
-        print ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
+        output = ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
                                                         ads.title, '|||',
                                                         ads.author[0], '|||',
                                                         ads.abstract, '|||',
                                                         ads.bibtex.__str__()]))
+        # Escape everything that can't be passed on a bash shell in a string
+        output = output.replace(u'"', u'\\"')
+        output = output.replace(u"'", u"\'")
+        output = output.replace(u"|", u'\|')
+        output = output.replace(u" ", u"\ ")
+        # output = u'"%s"' % output
+        print output
 
 class ADSConnector(object):
     """Receives input (token), derives an ADS url, and attempts to connect
