@@ -1,5 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>AMApplicationBuild</key>
@@ -18,7 +16,7 @@
 					<key>Container</key>
 					<string>List</string>
 					<key>Optional</key>
-					<true/>
+					<true />
 					<key>Types</key>
 					<array>
 						<string>com.apple.cocoa.string</string>
@@ -33,15 +31,15 @@
 				<key>AMParameterProperties</key>
 				<dict>
 					<key>COMMAND_STRING</key>
-					<dict/>
+					<dict />
 					<key>CheckedForUserDefaultShell</key>
-					<dict/>
+					<dict />
 					<key>inputMethod</key>
-					<dict/>
+					<dict />
 					<key>shell</key>
-					<dict/>
+					<dict />
 					<key>source</key>
-					<dict/>
+					<dict />
 				</dict>
 				<key>AMProvides</key>
 				<dict>
@@ -94,6 +92,9 @@ import time
 import optparse
 import tempfile
 import socket
+import binascii
+import zlib
+import subprocess
 
 import cgi
 import urllib2
@@ -105,6 +106,9 @@ from htmlentitydefs import name2codepoint
 
 # default timeout for url calls
 socket.setdefaulttimeout(30)
+
+
+
 
 def main():
     """
@@ -119,6 +123,9 @@ def main():
     prefs = Preferences()
     if options.debug:
         prefs['debug'] = True
+
+    # Make the embedder script
+    insertScript = EmbeddedInsertionScript()
 
     # multiple arguments - bibcodes to compare with ADS
     if options.update_arxiv or len(articleID) &gt; 1:
@@ -164,11 +171,18 @@ def main():
         ads.parse(connector.adsRead)
         # pdf local file, title, first author, abstract, bibtex code
         # UTF-8 encoded
-        print ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
+        output = ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
                                                         ads.title, '|||',
                                                         ads.author[0], '|||',
                                                         ads.abstract, '|||',
                                                         ads.bibtex.__str__()]))
+        # Escape double quotes
+        output = output.replace('"', '\\"')
+        print output
+        cmd = 'osascript %s "%s"' % (insertScript.compiledPath, output)
+        print cmd
+        subprocess.call(cmd, shell=True)
+
 
 class ADSConnector(object):
     """Receives input (token), derives an ADS url, and attempts to connect
@@ -640,28 +654,56 @@ class MNRASParser(HTMLParser):
             attrDict = dict(attrs)
             self.pdfURL = attrDict['src']
 
-            
+
+class EmbeddedInsertionScript(object):
+    """Manages the bibdesk insertion applescript.
+    
+    In order to make adsbibdesk.py a single-file installation (and Automator
+    action) we need this Python script to spawn the AppleScript interface to
+    BibDesk itself. The `build.py` script is responsible for embedding
+    adsbibdesk.applescript into this Python script.
+    """
+    def __init__(self):
+        super(EmbeddedInsertionScript, self).__init__()
+        self._txtData = "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"
+        self.compiledPath = os.path.expanduser("~/.adsbibdesk_injector.scpt")
+
+    def install(self):
+        """Install the compiled script"""
+        # Write the embedded applescript to a temp file
+        scptTxt = zlib.decompress(binascii.a2b_base64(self._txtData))
+        txtPath = tempfile.mktemp() + '.applescript'
+        tmpFile = open(txtPath, 'w')
+        tmpFile.write(scptTxt)
+        tmpFile.close()
+        # Compile the applescript
+        if os.path.exists(self.compiledPath): os.remove(self.compiledPath)
+        subprocess.call("osacompile -o %s %s" % (self.compiledPath, txtPath),
+                shell=True)
+
+
 if __name__ == '__main__':
     main()
     # test_mnras()
-</string>
+    # scpt = EmbeddedInsertionScript()
+    # scpt.install()</string>
 					<key>CheckedForUserDefaultShell</key>
-					<true/>
+					<true />
 					<key>inputMethod</key>
 					<integer>1</integer>
 					<key>shell</key>
 					<string>/usr/bin/python</string>
 					<key>source</key>
-					<string></string>
+					<string />
 				</dict>
 				<key>BundleIdentifier</key>
 				<string>com.apple.RunShellScript</string>
 				<key>CFBundleVersion</key>
 				<string>2.0.3</string>
 				<key>CanShowSelectedItemsWhenRun</key>
-				<false/>
+				<false />
 				<key>CanShowWhenRun</key>
-				<true/>
+				<true />
 				<key>Category</key>
 				<array>
 					<string>AMCategoryUtilities</string>
@@ -704,7 +746,7 @@ if __name__ == '__main__':
 					<key>1</key>
 					<dict>
 						<key>default value</key>
-						<string></string>
+						<string />
 						<key>name</key>
 						<string>source</string>
 						<key>required</key>
@@ -717,7 +759,7 @@ if __name__ == '__main__':
 					<key>2</key>
 					<dict>
 						<key>default value</key>
-						<false/>
+						<false />
 						<key>name</key>
 						<string>CheckedForUserDefaultShell</string>
 						<key>required</key>
@@ -730,7 +772,7 @@ if __name__ == '__main__':
 					<key>3</key>
 					<dict>
 						<key>default value</key>
-						<string></string>
+						<string />
 						<key>name</key>
 						<string>COMMAND_STRING</string>
 						<key>required</key>
@@ -755,128 +797,18 @@ if __name__ == '__main__':
 					</dict>
 				</dict>
 				<key>isViewVisible</key>
-				<true/>
+				<true />
 				<key>location</key>
-				<string>309.500000:516.000000</string>
+				<string>309.500000:671.000000</string>
 				<key>nibPath</key>
 				<string>/System/Library/Automator/Run Shell Script.action/Contents/Resources/English.lproj/main.nib</string>
 			</dict>
 			<key>isViewVisible</key>
-			<true/>
-		</dict>
-		<dict>
-			<key>action</key>
-			<dict>
-				<key>AMAccepts</key>
-				<dict>
-					<key>Container</key>
-					<string>List</string>
-					<key>Optional</key>
-					<true/>
-					<key>Types</key>
-					<array>
-						<string>com.apple.applescript.object</string>
-					</array>
-				</dict>
-				<key>AMActionVersion</key>
-				<string>1.0.2</string>
-				<key>AMApplication</key>
-				<array>
-					<string>Automator</string>
-				</array>
-				<key>AMParameterProperties</key>
-				<dict>
-					<key>source</key>
-					<dict/>
-				</dict>
-				<key>AMProvides</key>
-				<dict>
-					<key>Container</key>
-					<string>List</string>
-					<key>Types</key>
-					<array>
-						<string>com.apple.applescript.object</string>
-					</array>
-				</dict>
-				<key>ActionBundlePath</key>
-				<string>/System/Library/Automator/Run AppleScript.action</string>
-				<key>ActionName</key>
-				<string>Run AppleScript</string>
-				<key>ActionParameters</key>
-				<dict>
-					<key>source</key>
-					<string>--ADS to BibDesk -- frictionless import of ADS publications into BibDesk--Copyright (C) 2009  Rui Pereira &lt;rui.pereira@gmail.com&gt;----This program is free software: you can redistribute it and/or modify--it under the terms of the GNU General Public License as published by--the Free Software Foundation, either version 3 of the License, or--(at your option) any later version.----This program is distributed in the hope that it will be useful,--but WITHOUT ANY WARRANTY; without even the implied warranty of--MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the--GNU General Public License for more details.----You should have received a copy of the GNU General Public License--along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.----  Based on:--  AppleScript to convert downloaded Bibtex and abstract information to a BibDesk entry.--  Jonathan Sick, jonathansick@mac.com, August 2007--http://foolsworkshop.com/applescript/2008/05/an-applescript-replace-text-method/on replaceText(find, replace, subject)	set prevTIDs to text item delimiters of AppleScript	set text item delimiters of AppleScript to find	set subject to text items of subject	set text item delimiters of AppleScript to replace	set subject to "" &amp; subject	set text item delimiters of AppleScript to prevTIDs	return subjectend replaceText--http://bylr.net/3/2011/09/applescript-and-growl/-- on growlNotification(titlestr, descstr)-- 	-- this should work with Growl and GrowlHelperApp-- 	tell application "System Events" to set _growl to short name of every process whose creator type is "GRRR"-- 	if (count of _growl) &gt; 0 then-- 		set osascript to "-- property allNotifications :  {\"BibDesk notification\"}-- property enabledNotifications :  {\"BibDesk notification\"}-- property titlestr : \"" &amp; my replaceText("\"", "\\\"", titlestr) &amp; "\"-- property descstr : \"" &amp; my replaceText("\"", "\\\"", descstr) &amp; "\"-- -- tell application \"" &amp; (first item of _growl) &amp; "\"--     register as application \"BibDesk\" all notifications allNotifications default notifications enabledNotifications--     notify with name \"BibDesk notification\" title titlestr description descstr application name \"BibDesk\" priority 0 without sticky-- end tell-- "-- 		set shellScript to "osascript -e " &amp; quoted form of osascript &amp; " &amp;&gt; /dev/null &amp;"-- 		ignoring application responses-- 			do shell script shellScript-- 		end ignoring-- 	end if-- end growlNotification-- check for PDF annotations produced using Preview or Acrobat-- with some shell magic not fully testedon hasAnnotations(theFile)	try		set cmd to "strings " &amp; quoted form of theFile &amp; " | grep  -E 'Contents[ ]{0,1}\\('"		tell me			set theOutput to do shell script cmd		end tell	on error		set theOutput to ""	end try	return theOutput is not ""end hasAnnotations-- given a file (or folder) return a list containing--   the path to its parent directory,--   its name without its file extension, and--   its file extension-- http://www.alecjacobson.com/weblog/?p=229on parse_file(this_file)	set default_delimiters to AppleScript's text item delimiters	-- if given file is a folder then strip terminal ":" so as to return	-- folder name as file name and true parent directory	if last item of (this_file as string) = ":" then		set AppleScript's text item delimiters to ""		set this_file to (items 1 through -2 of (this_file as string)) as string	end if	set AppleScript's text item delimiters to ":"	set this_parent_dir to (text items 1 through -2 of (this_file as string)) as string	set this_name to (text item -1 of (this_file as string)) as string	-- default or no extension is empty string	set this_extension to ""	if this_name contains "." then		set AppleScript's text item delimiters to "."		set this_extension to the last text item of this_name		set this_name to (text items 1 through -2 of this_name) as string	end if	set AppleScript's text item delimiters to default_delimiters	return {this_parent_dir, this_name, this_extension}end parse_fileon safeDelete(thePub)	set keptPDFs to {}	tell document 1 of application "BibDesk"		tell thePub			-- always keep PDFs marked notes			repeat with theFile in (linked files whose POSIX path contains "_notes_" and POSIX path ends with ".pdf")				set end of keptPDFs to POSIX path of theFile			end repeat			--remove PDFs			repeat with theFile in (linked files whose POSIX path does not contain "_notes_" and POSIX path ends with ".pdf")				-- keep backup with Skim notes				if text Skim notes of theFile is not "" or my hasAnnotations(POSIX path of theFile) then					tell application "Finder"						set theSuffix to 1						set {fPath, fName, fExt} to my parse_file(theFile)						-- find a non-existing backup name						repeat							set backupName to fName &amp; "_notes_" &amp; theSuffix &amp; ".pdf"							if not ((fPath &amp; ":" &amp; backupName) exists) then exit repeat							set theSuffix to theSuffix + 1						end repeat						-- change file name (BibDesk will properly reference it automatically)						set name of file theFile to backupName						set end of keptPDFs to POSIX path of (fPath &amp; ":" &amp; backupName)						-- also try to move the .skim file						set skimPath to fPath &amp; ":" &amp; fName &amp; ".skim"						if skimPath exists then							set name of file skimPath to fName &amp; "_notes_" &amp; theSuffix &amp; ".skim"						end if					end tell					-- delete PDFs without notes				else					tell application "Finder"						delete file theFile					end tell				end if			end repeat		end tell		delete thePub	end tell	return keptPDFsend safeDeleteon run input	set defaultDelimiters to AppleScript's text item delimiters	set AppleScript's text item delimiters to " "	set input to (input as text)	set AppleScript's text item delimiters to "|||"	set {thePDFFile, theTitle, theAuthor, theAbstract, theBibEntry} to text items of input	set AppleScript's text item delimiters to defaultDelimiters	tell document 1 of application "BibDesk"		-- searchs for already existent publication with exactly the same title and first author		set keptPDFs to {}		if (count (search for theTitle)) &gt; 0 then			--delete old one			repeat with thePub in (search for theTitle)				if (count (authors of thePub)) &gt; 0 and name of first author of thePub contains theAuthor then					set keptPDFs to my safeDelete(thePub)					-- my growlNotification("Duplicate publication removed", "\"" &amp; theTitle &amp; "\"")				end if			end repeat		end if		-- add new publication		set thePub to first item of (import from theBibEntry)		tell thePub			set the cite key to generated cite key as string			set myCiteKey to cite key			-- old scanned articles			if theAbstract starts with "http://" then				make new linked URL with data (theAbstract as string) at end of linked URLs			else				set the abstract to theAbstract as string			end if			-- file found?			if thePDFFile ends with ".pdf" then				add (POSIX file thePDFFile) to beginning of linked files				auto file				-- this is not a file, but rather an URL			else if thePDFFile is not "failed" then				-- only add it if no DOI link present (they are very probably the same)				if (value of field "doi" = "") then					make new linked URL with data (thePDFFile as string) at end of linked URLs				end if			end if			-- add old annotated files			repeat with keptPDF in keptPDFs				add (POSIX file keptPDF) to end of linked files			end repeat		end tell	end tell	-- growl	-- my growlNotification("New publication added", "\"" &amp; theTitle &amp; "\" as " &amp; myCiteKey)end run</string>
-				</dict>
-				<key>BundleIdentifier</key>
-				<string>com.apple.Automator.RunScript</string>
-				<key>CFBundleVersion</key>
-				<string>1.0.2</string>
-				<key>CanShowSelectedItemsWhenRun</key>
-				<false/>
-				<key>CanShowWhenRun</key>
-				<true/>
-				<key>Category</key>
-				<array>
-					<string>AMCategoryUtilities</string>
-				</array>
-				<key>Class Name</key>
-				<string>RunScriptAction</string>
-				<key>InputUUID</key>
-				<string>DF4D9B0E-AC68-463C-AEAE-8D99E7FFCBC5</string>
-				<key>Keywords</key>
-				<array>
-					<string>Run</string>
-				</array>
-				<key>OutputUUID</key>
-				<string>C0616C32-37A5-4DCB-885E-6ABBA45006EF</string>
-				<key>UUID</key>
-				<string>D73164ED-DD1A-497F-A036-3EE098E9FF2E</string>
-				<key>UnlocalizedApplications</key>
-				<array>
-					<string>Automator</string>
-				</array>
-				<key>arguments</key>
-				<dict>
-					<key>0</key>
-					<dict>
-						<key>default value</key>
-						<string>on run {input, parameters}
-	
-	(* Your script goes here *)
-	
-	return input
-end run</string>
-						<key>name</key>
-						<string>source</string>
-						<key>required</key>
-						<string>0</string>
-						<key>type</key>
-						<string>0</string>
-						<key>uuid</key>
-						<string>0</string>
-					</dict>
-				</dict>
-				<key>isViewVisible</key>
-				<true/>
-				<key>location</key>
-				<string>309.500000:333.000000</string>
-				<key>nibPath</key>
-				<string>/System/Library/Automator/Run AppleScript.action/Contents/Resources/English.lproj/main.nib</string>
-			</dict>
-			<key>isViewVisible</key>
-			<true/>
+			<true />
 		</dict>
 	</array>
 	<key>connectors</key>
-	<dict>
-		<key>BF792318-D877-4D8E-83AA-FB353ACC3665</key>
-		<dict>
-			<key>from</key>
-			<string>11621988-BE90-4369-A6FC-DACBBFBE4405 - 11621988-BE90-4369-A6FC-DACBBFBE4405</string>
-			<key>to</key>
-			<string>D73164ED-DD1A-497F-A036-3EE098E9FF2E - D73164ED-DD1A-497F-A036-3EE098E9FF2E</string>
-		</dict>
-	</dict>
+	<dict />
 	<key>state</key>
 	<dict>
 		<key>AMLogTabViewSelectedIndex</key>

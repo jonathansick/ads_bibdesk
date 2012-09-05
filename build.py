@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
             # rewrite with current files
             if py:
-                py[0].find('string').text = open('adsbibdesk.py').read()
+                py[0].find('string').text = open('build/adsbibdesk/adsbibdesk.py').read()
 
         open(workflow, 'w').write(ElementTree.tostring(xml))
 
