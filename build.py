@@ -36,8 +36,8 @@ if __name__ == '__main__':
     tmp = f.read()[:-1]
     tmp = re.sub('==SCPT==', compress(open('adsbibdesk_injector.applescript').read()).strip(), tmp)
     f.close()
-    if os.path.exists('build/adsbibdesk.py'): os.remove('build/adsbibdesk.py')
-    f = open('build/adsbibdesk.py', 'w')
+    if os.path.exists('build/adsbibdesk/adsbibdesk.py'): os.remove('build/adsbibdesk/adsbibdesk.py')
+    f = open('build/adsbibdesk/adsbibdesk.py', 'w')
     f.write(tmp)
     f.close()
 
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
             # rewrite with current files
             if py:
-                py[0].find('string').text = open('build/adsbibdesk.py').read()
+                py[0].find('string').text = open('adsbibdesk.py').read()
 
         open(workflow, 'w').write(ElementTree.tostring(xml))
 
