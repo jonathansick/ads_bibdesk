@@ -27,17 +27,17 @@ def compress(obj):
 
 if __name__ == '__main__':
 
-    service = os.path.join(os.path.dirname(__file__), 'Add to BibDesk.workflow/Contents/document.wflow')
-    app = os.path.join(os.path.dirname(__file__), 'Add to BibDesk App.app/Contents/document.wflow')
+    service = os.path.join(os.path.dirname(__file__), 'build/Add to BibDesk.workflow/Contents/document.wflow')
+    app = os.path.join(os.path.dirname(__file__), 'build/ADS to BibDesk.app/Contents/document.wflow')
     update_arxiv = os.path.join(os.path.dirname(__file__), 'update_bibdesk_arxiv.sh')
 
     # embed applescript into adsbibdesk.py script
     f = open('adsbibdesk.py', 'r')
     tmp = f.read()[:-1]
-    tmp = re.sub('==SCPT==', compress(open('adsbibdesk.applescript').read()).strip(), tmp)
+    tmp = re.sub('==SCPT==', compress(open('adsbibdesk_injector.applescript').read()).strip(), tmp)
     f.close()
-    if os.path.exists('adsbibdesk_built.py'): os.remove('adsbibdesk_built.py')
-    f = open('adsbibdesk_built.py', 'w')
+    if os.path.exists('build/adsbibdesk.py'): os.remove('build/adsbibdesk.py')
+    f = open('build/adsbibdesk.py', 'w')
     f.write(tmp)
     f.close()
 
@@ -50,22 +50,15 @@ if __name__ == '__main__':
                  if c.tag == 'dict' and
                  any([i.text and '/usr/bin/env' in i.text for i in c.getchildren()])]
 
-            ascript = [c for c in arr.find('dict').getchildren()
-                       if c.tag == 'dict' and
-                       any([i.text and 'AppleScript' in i.text for i in c.getchildren()])]
-
             # rewrite with current files
             if py:
-                py[0].find('string').text = open('adsbibdesk_built.py').read()
-            elif ascript:
-                ascript[0].find('string').text = open('adsbibdesk.applescript').read()
+                py[0].find('string').text = open('build/adsbibdesk.py').read()
 
         open(workflow, 'w').write(ElementTree.tostring(xml))
 
     # replace into update arxiv script
-    tmp = open(update_arxiv).read()[:-1]
-    tmp = re.sub('(?<=py=").*(?="\n)', compress(open('adsbibdesk_built.py').read()).strip(), tmp)
-    tmp = re.sub('(?<=scpt=").*(?="\n)', compress(open('adsbibdesk.applescript').read()).strip(), tmp)
-    print >> open(update_arxiv, 'w'), tmp
-
-    
+    # TODO updated .sh script will be deprecated
+    # tmp = open(update_arxiv).read()[:-1]
+    # tmp = re.sub('(?<=py=").*(?="\n)', compress(open('adsbibdesk_built.py').read()).strip(), tmp)
+    # tmp = re.sub('(?<=scpt=").*(?="\n)', compress(open('adsbibdesk.applescript').read()).strip(), tmp)
+    # print >> open(update_arxiv, 'w'), tmp
