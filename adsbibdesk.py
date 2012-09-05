@@ -48,16 +48,7 @@ from htmlentitydefs import name2codepoint
 # default timeout for url calls
 socket.setdefaulttimeout(30)
 
-# Embed the insertion applescript
-SCPT_DATA = "==SCPT=="
 
-def unpack_insertion_applescript(tmpFile):
-    """The insertion applescript is embedded as compressed data in the
-    string SCPT_DATA. Here we decompress it and write to a temp file.
-    The user must close the `tmpFile` manually to delete it.
-    """
-    scptTxt = zlib.decompress(binascii.a2b_base64(SCPT_DATA))
-    tmpFile.write(scptTxt)
 
 
 def main():
@@ -75,10 +66,7 @@ def main():
         prefs['debug'] = True
 
     # Make the embedder script
-    # scptFile = tempfile.NamedTemporaryFile(mode='w')
-    scptFilePath = tempfile.mktemp() + '.applescript'
-    scptFile = open(scptFilePath, 'w')
-    unpack_insertion_applescript(scptFile)
+    insertScript = EmbeddedInsertionScript()
 
     # multiple arguments - bibcodes to compare with ADS
     if options.update_arxiv or len(articleID) > 1:
@@ -132,12 +120,9 @@ def main():
         # Escape double quotes
         output = output.replace('"', '\\"')
         print output
-        cmd = 'osascript %s "%s"' % (scptFilePath, output)
+        cmd = 'osascript %s "%s"' % (insertScript.compiledPath, output)
         print cmd
         subprocess.call(cmd, shell=True)
-
-    # Remove temporary applescript
-    scptFile.close()
 
 
 class ADSConnector(object):
@@ -610,7 +595,36 @@ class MNRASParser(HTMLParser):
             attrDict = dict(attrs)
             self.pdfURL = attrDict['src']
 
-            
+
+class EmbeddedInsertionScript(object):
+    """Manages the bibdesk insertion applescript.
+    
+    In order to make adsbibdesk.py a single-file installation (and Automator
+    action) we need this Python script to spawn the AppleScript interface to
+    BibDesk itself. The `build.py` script is responsible for embedding
+    adsbibdesk.applescript into this Python script.
+    """
+    def __init__(self):
+        super(EmbeddedInsertionScript, self).__init__()
+        self._txtData = "==SCPT=="
+        self.compiledPath = os.path.expanduser("~/.adsbibdesk_injector.scpt")
+
+    def install(self):
+        """Install the compiled script"""
+        # Write the embedded applescript to a temp file
+        scptTxt = zlib.decompress(binascii.a2b_base64(self._txtData))
+        txtPath = tempfile.mktemp() + '.applescript'
+        tmpFile = open(txtPath, 'w')
+        tmpFile.write(scptTxt)
+        tmpFile.close()
+        # Compile the applescript
+        if os.path.exists(self.compiledPath): os.remove(self.compiledPath)
+        subprocess.call("osacompile -o %s %s" % (self.compiledPath, txtPath),
+                shell=True)
+
+
 if __name__ == '__main__':
     main()
     # test_mnras()
+    # scpt = EmbeddedInsertionScript()
+    # scpt.install()
