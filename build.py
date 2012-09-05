@@ -48,13 +48,13 @@ if __name__ == '__main__':
             if py:
                 py[0].find('string').text = open('adsbibdesk.py').read()
             elif ascript:
-                ascript[0].find('string').text = open('adsbibdesk.scpt').read()
+                ascript[0].find('string').text = open('adsbibdesk.applescript').read()
 
         open(workflow, 'w').write(ElementTree.tostring(xml))
 
     # replace into update arxiv script
     tmp = open(update_arxiv).read()[:-1]
     tmp = re.sub('(?<=py=").*(?="\n)', compress(open('adsbibdesk.py').read()).strip(), tmp)
-    tmp = re.sub('(?<=scpt=").*(?="\n)', compress(open('adsbibdesk.scpt').read()).strip(), tmp)
+    tmp = re.sub('(?<=scpt=").*(?="\n)', compress(open('adsbibdesk.applescript').read()).strip(), tmp)
     print >> open(update_arxiv, 'w'), tmp
     
