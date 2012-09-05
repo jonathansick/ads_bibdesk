@@ -33,6 +33,9 @@ import time
 import optparse
 import tempfile
 import socket
+import binascii
+import zlib
+import subprocess
 
 import cgi
 import urllib2
@@ -44,6 +47,18 @@ from htmlentitydefs import name2codepoint
 
 # default timeout for url calls
 socket.setdefaulttimeout(30)
+
+# Embed the insertion applescript
+SCPT_DATA = "==SCPT=="
+
+def unpack_insertion_applescript(tmpFile):
+    """The insertion applescript is embedded as compressed data in the
+    string SCPT_DATA. Here we decompress it and write to a temp file.
+    The user must close the `tmpFile` manually to delete it.
+    """
+    scptTxt = zlib.decompress(binascii.a2b_base64(SCPT_DATA))
+    tmpFile.write(scptTxt)
+
 
 def main():
     """
@@ -58,6 +73,12 @@ def main():
     prefs = Preferences()
     if options.debug:
         prefs['debug'] = True
+
+    # Make the embedder script
+    # scptFile = tempfile.NamedTemporaryFile(mode='w')
+    scptFilePath = tempfile.mktemp() + '.applescript'
+    scptFile = open(scptFilePath, 'w')
+    unpack_insertion_applescript(scptFile)
 
     # multiple arguments - bibcodes to compare with ADS
     if options.update_arxiv or len(articleID) > 1:
@@ -108,13 +129,16 @@ def main():
                                                         ads.author[0], '|||',
                                                         ads.abstract, '|||',
                                                         ads.bibtex.__str__()]))
-        # Escape everything that can't be passed on a bash shell in a string
-        output = output.replace(u'"', u'\\"')
-        output = output.replace(u"'", u"\'")
-        output = output.replace(u"|", u'\|')
-        output = output.replace(u" ", u"\ ")
-        # output = u'"%s"' % output
-        print output
+        # Escape double quotes
+        output = output.replace('"', '\"')
+        scptPath = scptFile.name
+        cmd = 'osascript %s "%s"' % (scptPath, output)
+        print cmd
+        subprocess.call(cmd, shell=True)
+
+    # Remove temporary applescript
+    scptFile.close()
+
 
 class ADSConnector(object):
     """Receives input (token), derives an ADS url, and attempts to connect

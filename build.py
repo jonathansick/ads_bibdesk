@@ -31,6 +31,16 @@ if __name__ == '__main__':
     app = os.path.join(os.path.dirname(__file__), 'Add to BibDesk App.app/Contents/document.wflow')
     update_arxiv = os.path.join(os.path.dirname(__file__), 'update_bibdesk_arxiv.sh')
 
+    # embed applescript into adsbibdesk.py script
+    f = open('adsbibdesk.py', 'r')
+    tmp = f.read()[:-1]
+    tmp = re.sub('==SCPT==', compress(open('adsbibdesk.applescript').read()).strip(), tmp)
+    f.close()
+    if os.path.exists('adsbibdesk_built.py'): os.remove('adsbibdesk_built.py')
+    f = open('adsbibdesk_built.py', 'w')
+    f.write(tmp)
+    f.close()
+
     for workflow in (service, app):
         xml = ElementTree.fromstring(open(workflow).read())
         for arr in xml.find('dict').find('array').getchildren():
@@ -46,7 +56,7 @@ if __name__ == '__main__':
 
             # rewrite with current files
             if py:
-                py[0].find('string').text = open('adsbibdesk.py').read()
+                py[0].find('string').text = open('adsbibdesk_built.py').read()
             elif ascript:
                 ascript[0].find('string').text = open('adsbibdesk.applescript').read()
 
@@ -54,7 +64,8 @@ if __name__ == '__main__':
 
     # replace into update arxiv script
     tmp = open(update_arxiv).read()[:-1]
-    tmp = re.sub('(?<=py=").*(?="\n)', compress(open('adsbibdesk.py').read()).strip(), tmp)
+    tmp = re.sub('(?<=py=").*(?="\n)', compress(open('adsbibdesk_built.py').read()).strip(), tmp)
     tmp = re.sub('(?<=scpt=").*(?="\n)', compress(open('adsbibdesk.applescript').read()).strip(), tmp)
     print >> open(update_arxiv, 'w'), tmp
+
     
