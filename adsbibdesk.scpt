@@ -32,27 +32,27 @@ on replaceText(find, replace, subject)
 end replaceText
 
 --http://bylr.net/3/2011/09/applescript-and-growl/
-on growlNotification(titlestr, descstr)
-	-- this should work with Growl and GrowlHelperApp
-	tell application "System Events" to set _growl to short name of every process whose creator type is "GRRR"
-	if (count of _growl) > 0 then
-		set osascript to "
-property allNotifications :  {\"BibDesk notification\"}
-property enabledNotifications :  {\"BibDesk notification\"}
-property titlestr : \"" & my replaceText("\"", "\\\"", titlestr) & "\"
-property descstr : \"" & my replaceText("\"", "\\\"", descstr) & "\"
-
-tell application \"" & (first item of _growl) & "\"
-    register as application \"BibDesk\" all notifications allNotifications default notifications enabledNotifications
-    notify with name \"BibDesk notification\" title titlestr description descstr application name \"BibDesk\" priority 0 without sticky
-end tell
-"
-		set shellScript to "osascript -e " & quoted form of osascript & " &> /dev/null &"
-		ignoring application responses
-			do shell script shellScript
-		end ignoring
-	end if
-end growlNotification
+-- on growlNotification(titlestr, descstr)
+-- 	-- this should work with Growl and GrowlHelperApp
+-- 	tell application "System Events" to set _growl to short name of every process whose creator type is "GRRR"
+-- 	if (count of _growl) > 0 then
+-- 		set osascript to "
+-- property allNotifications :  {\"BibDesk notification\"}
+-- property enabledNotifications :  {\"BibDesk notification\"}
+-- property titlestr : \"" & my replaceText("\"", "\\\"", titlestr) & "\"
+-- property descstr : \"" & my replaceText("\"", "\\\"", descstr) & "\"
+-- 
+-- tell application \"" & (first item of _growl) & "\"
+--     register as application \"BibDesk\" all notifications allNotifications default notifications enabledNotifications
+--     notify with name \"BibDesk notification\" title titlestr description descstr application name \"BibDesk\" priority 0 without sticky
+-- end tell
+-- "
+-- 		set shellScript to "osascript -e " & quoted form of osascript & " &> /dev/null &"
+-- 		ignoring application responses
+-- 			do shell script shellScript
+-- 		end ignoring
+-- 	end if
+-- end growlNotification
 
 -- check for PDF annotations produced using Preview or Acrobat
 -- with some shell magic not fully tested
@@ -154,7 +154,7 @@ on run input
 			repeat with thePub in (search for theTitle)
 				if (count (authors of thePub)) > 0 and name of first author of thePub contains theAuthor then
 					set keptPDFs to my safeDelete(thePub)
-					my growlNotification("Duplicate publication removed", "\"" & theTitle & "\"")
+					-- my growlNotification("Duplicate publication removed", "\"" & theTitle & "\"")
 				end if
 			end repeat
 		end if
@@ -189,6 +189,6 @@ on run input
 	end tell
 
 	-- growl
-	my growlNotification("New publication added", "\"" & theTitle & "\" as " & myCiteKey)
+	-- my growlNotification("New publication added", "\"" & theTitle & "\" as " & myCiteKey)
 
 end run
