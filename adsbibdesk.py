@@ -130,9 +130,9 @@ def main():
                                                         ads.abstract, '|||',
                                                         ads.bibtex.__str__()]))
         # Escape double quotes
-        output = output.replace('"', '\"')
-        scptPath = scptFile.name
-        cmd = 'osascript %s "%s"' % (scptPath, output)
+        output = output.replace('"', '\\"')
+        print output
+        cmd = 'osascript %s "%s"' % (scptFilePath, output)
         print cmd
         subprocess.call(cmd, shell=True)
 
