@@ -73,6 +73,7 @@ def main():
 
     # Make the embedder script
     insertScript = EmbeddedInsertionScript()
+    insertScript.install()
 
     # multiple arguments - bibcodes to compare with ADS
     if options.update_arxiv or len(articleIDs) > 1:
@@ -625,7 +626,7 @@ class EmbeddedInsertionScript(object):
         tmpFile.close()
         # Compile the applescript
         if os.path.exists(self.compiledPath):
-            print "Compiled applescript %s already exists; skipping compile step" % self.compilePath
+            print "Compiled applescript %s already exists; skipping compile step" % self.compiledPath
             # os.remove(self.compiledPath)
         else:
             cmd = "osacompile -o %s %s" % (self.compiledPath, txtPath)
