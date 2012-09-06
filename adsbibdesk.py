@@ -60,6 +60,12 @@ def main():
     parser.add_option('-u', '--update_arxiv', default=False, action="store_true")
     options, articleID = parser.parse_args()
 
+    if len(articleID) == 1:
+        articleIDs = list(articleID)
+    else:
+        # Try to use standard input
+        articleIDs = map(lambda s: s.strip(), sys.stdin.readlines())
+
     # Get preferences from (optional) config file
     prefs = Preferences()
     if options.debug:
@@ -69,9 +75,9 @@ def main():
     insertScript = EmbeddedInsertionScript()
 
     # multiple arguments - bibcodes to compare with ADS
-    if options.update_arxiv or len(articleID) > 1:
+    if options.update_arxiv or len(articleIDs) > 1:
         changed = open('changed_arxiv', 'w')
-        for n, bibcode in enumerate(articleID):
+        for n, bibcode in enumerate(articleIDs):
             # sleep for 15 seconds, to prevent ADS flooding
             time.sleep(15)
             if prefs['debug']:
@@ -101,8 +107,8 @@ def main():
     else:
         # Determine what we're dealing with. The goal is to get a URL into ADS
         # adsURL = parseURL(articleID[0], prefs)
-        if prefs['debug']: print "article token", articleID[0]
-        connector = ADSConnector(articleID[0], prefs)
+        if prefs['debug']: print "article token", articleIDs[0]
+        connector = ADSConnector(articleIDs[0], prefs)
         if prefs['debug']: print "derived url", connector.adsURL
         if connector.adsRead is None:
             sys.exit()
@@ -119,9 +125,9 @@ def main():
                                                         ads.bibtex.__str__()]))
         # Escape double quotes
         output = output.replace('"', '\\"')
-        print output
         cmd = 'osascript %s "%s"' % (insertScript.compiledPath, output)
-        print cmd
+        if prefs['debug']:
+            print cmd
         subprocess.call(cmd, shell=True)
 
 

@@ -1,9 +1,9 @@
 <plist version="1.0">
 <dict>
 	<key>AMApplicationBuild</key>
-	<string>246</string>
+	<string>346</string>
 	<key>AMApplicationVersion</key>
-	<string>2.1</string>
+	<string>2.3</string>
 	<key>AMDocumentVersion</key>
 	<string>2</string>
 	<key>actions</key>
@@ -14,25 +14,31 @@
 				<key>AMAccepts</key>
 				<dict>
 					<key>Container</key>
-					<string>Single</string>
+					<string>List</string>
 					<key>Optional</key>
 					<true />
 					<key>Types</key>
 					<array>
-						<string>com.apple.applescript.text-object</string>
+						<string>com.apple.cocoa.string</string>
+						<string>com.apple.cocoa.attributed-string</string>
 					</array>
 				</dict>
 				<key>AMActionVersion</key>
-				<string>1.0</string>
+				<string>1.2.1</string>
+				<key>AMApplication</key>
+				<array>
+					<string>System</string>
+				</array>
 				<key>AMParameterProperties</key>
 				<dict />
 				<key>AMProvides</key>
 				<dict>
 					<key>Container</key>
-					<string>Single</string>
+					<string>List</string>
 					<key>Types</key>
 					<array>
-						<string>com.apple.applescript.text-object</string>
+						<string>com.apple.cocoa.attributed-string</string>
+						<string>com.apple.cocoa.string</string>
 					</array>
 				</dict>
 				<key>AMRequiredResources</key>
@@ -43,14 +49,10 @@
 				<string>Get Contents of Clipboard</string>
 				<key>ActionParameters</key>
 				<dict />
-				<key>Application</key>
-				<array>
-					<string>System</string>
-				</array>
 				<key>BundleIdentifier</key>
 				<string>com.apple.Automator.Get_Contents_of_Clipboard</string>
 				<key>CFBundleVersion</key>
-				<string>1.0</string>
+				<string>1.2.1</string>
 				<key>CanShowSelectedItemsWhenRun</key>
 				<true />
 				<key>CanShowWhenRun</key>
@@ -60,7 +62,7 @@
 					<string>AMCategoryUtilities</string>
 				</array>
 				<key>Class Name</key>
-				<string>AMAppleScriptAction</string>
+				<string>AMGetContentsOfClipboardAction</string>
 				<key>InputUUID</key>
 				<string>B0BC33DB-42F5-4147-9582-00F1C89F8A2F</string>
 				<key>Keywords</key>
@@ -92,7 +94,11 @@
 					</array>
 				</dict>
 				<key>AMActionVersion</key>
-				<string>2.0.1</string>
+				<string>2.0.3</string>
+				<key>AMApplication</key>
+				<array>
+					<string>Automator</string>
+				</array>
 				<key>AMParameterProperties</key>
 				<dict>
 					<key>COMMAND_STRING</key>
@@ -320,20 +326,16 @@ end run
 					<key>CheckedForUserDefaultShell</key>
 					<true />
 					<key>inputMethod</key>
-					<integer>1</integer>
+					<integer>0</integer>
 					<key>shell</key>
 					<string>/usr/bin/python</string>
 					<key>source</key>
 					<string />
 				</dict>
-				<key>Application</key>
-				<array>
-					<string>Automator</string>
-				</array>
 				<key>BundleIdentifier</key>
 				<string>com.apple.RunShellScript</string>
 				<key>CFBundleVersion</key>
-				<string>2.0.1</string>
+				<string>2.0.3</string>
 				<key>CanShowSelectedItemsWhenRun</key>
 				<false />
 				<key>CanShowWhenRun</key>
@@ -433,305 +435,9 @@ end run
 				<key>isViewVisible</key>
 				<true />
 				<key>location</key>
-				<string>420.500000:639.000000</string>
+				<string>309.500000:605.000000</string>
 				<key>nibPath</key>
 				<string>/System/Library/Automator/Run Shell Script.action/Contents/Resources/English.lproj/main.nib</string>
-			</dict>
-			<key>isViewVisible</key>
-			<true />
-		</dict>
-		<dict>
-			<key>action</key>
-			<dict>
-				<key>AMAccepts</key>
-				<dict>
-					<key>Container</key>
-					<string>List</string>
-					<key>Optional</key>
-					<true />
-					<key>Types</key>
-					<array>
-						<string>com.apple.applescript.object</string>
-					</array>
-				</dict>
-				<key>AMActionVersion</key>
-				<string>1.0</string>
-				<key>AMParameterProperties</key>
-				<dict>
-					<key>source</key>
-					<dict />
-				</dict>
-				<key>AMProvides</key>
-				<dict>
-					<key>Container</key>
-					<string>List</string>
-					<key>Types</key>
-					<array>
-						<string>com.apple.applescript.object</string>
-					</array>
-				</dict>
-				<key>ActionBundlePath</key>
-				<string>/System/Library/Automator/Run AppleScript.action</string>
-				<key>ActionName</key>
-				<string>Run AppleScript</string>
-				<key>ActionParameters</key>
-				<dict>
-					<key>source</key>
-					<string>--ADS to BibDesk -- frictionless import of ADS publications into BibDesk
---Copyright (C) 2009  Rui Pereira &lt;rui.pereira@gmail.com&gt;
---
---This program is free software: you can redistribute it and/or modify
---it under the terms of the GNU General Public License as published by
---the Free Software Foundation, either version 3 of the License, or
---(at your option) any later version.
---
---This program is distributed in the hope that it will be useful,
---but WITHOUT ANY WARRANTY; without even the implied warranty of
---MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
---GNU General Public License for more details.
---
---You should have received a copy of the GNU General Public License
---along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
---
---  Based on:
---  AppleScript to convert downloaded Bibtex and abstract information to a BibDesk entry.
---  Jonathan Sick, jonathansick@mac.com, August 2007
-
---http://foolsworkshop.com/applescript/2008/05/an-applescript-replace-text-method/
-on replaceText(find, replace, subject)
-	set prevTIDs to text item delimiters of AppleScript
-	set text item delimiters of AppleScript to find
-	set subject to text items of subject
-
-	set text item delimiters of AppleScript to replace
-	set subject to "" &amp; subject
-	set text item delimiters of AppleScript to prevTIDs
-
-	return subject
-end replaceText
-
---http://bylr.net/3/2011/09/applescript-and-growl/
--- on growlNotification(titlestr, descstr)
--- 	-- this should work with Growl and GrowlHelperApp
--- 	tell application "System Events" to set _growl to short name of every process whose creator type is "GRRR"
--- 	if (count of _growl) &gt; 0 then
--- 		set osascript to "
--- property allNotifications :  {\"BibDesk notification\"}
--- property enabledNotifications :  {\"BibDesk notification\"}
--- property titlestr : \"" &amp; my replaceText("\"", "\\\"", titlestr) &amp; "\"
--- property descstr : \"" &amp; my replaceText("\"", "\\\"", descstr) &amp; "\"
--- 
--- tell application \"" &amp; (first item of _growl) &amp; "\"
---     register as application \"BibDesk\" all notifications allNotifications default notifications enabledNotifications
---     notify with name \"BibDesk notification\" title titlestr description descstr application name \"BibDesk\" priority 0 without sticky
--- end tell
--- "
--- 		set shellScript to "osascript -e " &amp; quoted form of osascript &amp; " &amp;&gt; /dev/null &amp;"
--- 		ignoring application responses
--- 			do shell script shellScript
--- 		end ignoring
--- 	end if
--- end growlNotification
-
--- check for PDF annotations produced using Preview or Acrobat
--- with some shell magic not fully tested
-on hasAnnotations(theFile)
-	try
-		set cmd to "strings " &amp; quoted form of theFile &amp; " | grep  -E 'Contents[ ]{0,1}\\('"
-		tell me
-			set theOutput to do shell script cmd
-		end tell
-	on error
-		set theOutput to ""
-	end try
-	return theOutput is not ""
-end hasAnnotations
-
--- given a file (or folder) return a list containing
---   the path to its parent directory,
---   its name without its file extension, and
---   its file extension
--- http://www.alecjacobson.com/weblog/?p=229
-on parse_file(this_file)
-	set default_delimiters to AppleScript's text item delimiters
-	-- if given file is a folder then strip terminal ":" so as to return
-	-- folder name as file name and true parent directory
-	if last item of (this_file as string) = ":" then
-		set AppleScript's text item delimiters to ""
-		set this_file to (items 1 through -2 of (this_file as string)) as string
-	end if
-	set AppleScript's text item delimiters to ":"
-	set this_parent_dir to (text items 1 through -2 of (this_file as string)) as string
-	set this_name to (text item -1 of (this_file as string)) as string
-	-- default or no extension is empty string
-	set this_extension to ""
-	if this_name contains "." then
-		set AppleScript's text item delimiters to "."
-		set this_extension to the last text item of this_name
-		set this_name to (text items 1 through -2 of this_name) as string
-	end if
-	set AppleScript's text item delimiters to default_delimiters
-	return {this_parent_dir, this_name, this_extension}
-end parse_file
-
-on safeDelete(thePub)
-	set keptPDFs to {}
-	tell document 1 of application "BibDesk"
-		tell thePub
-			-- always keep PDFs marked notes
-			repeat with theFile in (linked files whose POSIX path contains "_notes_" and POSIX path ends with ".pdf")
-				set end of keptPDFs to POSIX path of theFile
-			end repeat
-			--remove PDFs
-			repeat with theFile in (linked files whose POSIX path does not contain "_notes_" and POSIX path ends with ".pdf")
-				-- keep backup with Skim notes
-				if text Skim notes of theFile is not "" or my hasAnnotations(POSIX path of theFile) then
-					tell application "Finder"
-						set theSuffix to 1
-						set {fPath, fName, fExt} to my parse_file(theFile)
-						-- find a non-existing backup name
-						repeat
-							set backupName to fName &amp; "_notes_" &amp; theSuffix &amp; ".pdf"
-							if not ((fPath &amp; ":" &amp; backupName) exists) then exit repeat
-							set theSuffix to theSuffix + 1
-						end repeat
-						-- change file name (BibDesk will properly reference it automatically)
-						set name of file theFile to backupName
-						set end of keptPDFs to POSIX path of (fPath &amp; ":" &amp; backupName)
-						-- also try to move the .skim file
-						set skimPath to fPath &amp; ":" &amp; fName &amp; ".skim"
-						if skimPath exists then
-							set name of file skimPath to fName &amp; "_notes_" &amp; theSuffix &amp; ".skim"
-						end if
-					end tell
-					-- delete PDFs without notes
-				else
-					tell application "Finder"
-						delete file theFile
-					end tell
-				end if
-			end repeat
-		end tell
-		delete thePub
-	end tell
-	return keptPDFs
-end safeDelete
-
-on run input
-	set defaultDelimiters to AppleScript's text item delimiters
-	set AppleScript's text item delimiters to " "
-	set input to (input as text)
-	set AppleScript's text item delimiters to "|||"
-	set {thePDFFile, theTitle, theAuthor, theAbstract, theBibEntry} to text items of input
-	set AppleScript's text item delimiters to defaultDelimiters
-
-	tell document 1 of application "BibDesk"
-		-- searchs for already existent publication with exactly the same title and first author
-		set keptPDFs to {}
-		if (count (search for theTitle)) &gt; 0 then
-			--delete old one
-			repeat with thePub in (search for theTitle)
-				if (count (authors of thePub)) &gt; 0 and name of first author of thePub contains theAuthor then
-					set keptPDFs to my safeDelete(thePub)
-					-- my growlNotification("Duplicate publication removed", "\"" &amp; theTitle &amp; "\"")
-				end if
-			end repeat
-		end if
-
-		-- add new publication
-		set thePub to first item of (import from theBibEntry)
-		tell thePub
-			set the cite key to generated cite key as string
-			set myCiteKey to cite key
-			-- old scanned articles
-			if theAbstract starts with "http://" then
-				make new linked URL with data (theAbstract as string) at end of linked URLs
-			else
-				set the abstract to theAbstract as string
-			end if
-			-- file found?
-			if thePDFFile ends with ".pdf" then
-				add (POSIX file thePDFFile) to beginning of linked files
-				auto file
-				-- this is not a file, but rather an URL
-			else if thePDFFile is not "failed" then
-				-- only add it if no DOI link present (they are very probably the same)
-				if (value of field "doi" = "") then
-					make new linked URL with data (thePDFFile as string) at end of linked URLs
-				end if
-			end if
-			-- add old annotated files
-			repeat with keptPDF in keptPDFs
-				add (POSIX file keptPDF) to end of linked files
-			end repeat
-		end tell
-	end tell
-
-	-- growl
-	-- my growlNotification("New publication added", "\"" &amp; theTitle &amp; "\" as " &amp; myCiteKey)
-
-end run
-</string>
-				</dict>
-				<key>Application</key>
-				<array>
-					<string>Automator</string>
-				</array>
-				<key>BundleIdentifier</key>
-				<string>com.apple.Automator.RunScript</string>
-				<key>CFBundleVersion</key>
-				<string>1.0</string>
-				<key>CanShowSelectedItemsWhenRun</key>
-				<false />
-				<key>CanShowWhenRun</key>
-				<true />
-				<key>Category</key>
-				<array>
-					<string>AMCategoryUtilities</string>
-				</array>
-				<key>Class Name</key>
-				<string>RunScriptAction</string>
-				<key>InputUUID</key>
-				<string>CFA2B4C5-5F51-4E63-849C-DDD77C7E414E</string>
-				<key>Keywords</key>
-				<array>
-					<string>Run</string>
-				</array>
-				<key>OutputUUID</key>
-				<string>7A35A6BE-B95B-4ED0-A150-862DC6970F61</string>
-				<key>UUID</key>
-				<string>955038CD-F2CD-47C7-B1A5-6A3B4D3B2FF3</string>
-				<key>UnlocalizedApplications</key>
-				<array>
-					<string>Automator</string>
-				</array>
-				<key>arguments</key>
-				<dict>
-					<key>0</key>
-					<dict>
-						<key>default value</key>
-						<string>on run {input, parameters}
-	
-	(* Your script goes here *)
-	
-	return input
-end run</string>
-						<key>name</key>
-						<string>source</string>
-						<key>required</key>
-						<string>0</string>
-						<key>type</key>
-						<string>0</string>
-						<key>uuid</key>
-						<string>0</string>
-					</dict>
-				</dict>
-				<key>isViewVisible</key>
-				<true />
-				<key>location</key>
-				<string>420.500000:456.000000</string>
-				<key>nibPath</key>
-				<string>/System/Library/Automator/Run AppleScript.action/Contents/Resources/English.lproj/main.nib</string>
 			</dict>
 			<key>isViewVisible</key>
 			<true />
@@ -739,14 +445,7 @@ end run</string>
 	</array>
 	<key>connectors</key>
 	<dict>
-		<key>ABE6BEB3-C47A-4BD2-B15E-8262C963C818</key>
-		<dict>
-			<key>from</key>
-			<string>F9F2D720-3CC6-4C60-B7D8-02981C8B8B63 - F9F2D720-3CC6-4C60-B7D8-02981C8B8B63</string>
-			<key>to</key>
-			<string>955038CD-F2CD-47C7-B1A5-6A3B4D3B2FF3 - 955038CD-F2CD-47C7-B1A5-6A3B4D3B2FF3</string>
-		</dict>
-		<key>D69CF8B5-0F8A-4B05-9B1F-5747692A150D</key>
+		<key>58B6FEC7-7A45-4F21-9FF3-FEDB8DC86651</key>
 		<dict>
 			<key>from</key>
 			<string>59A79AF9-E315-4B2F-995D-248D03F6B9F5 - 59A79AF9-E315-4B2F-995D-248D03F6B9F5</string>
