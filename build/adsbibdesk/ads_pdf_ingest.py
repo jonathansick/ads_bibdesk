@@ -4,7 +4,27 @@
 Ingest a folder of PDFs that originated from ADS, but now link them to ADS
 and ingest into BibDesk.
 
-2012-09-06 - Created by Jonathan Sick
+Requirements
+------------
+
+1. You need the program pdf2json (http://code.google.com/p/pdf2json/) to use
+this script. The easiest way to get pdf2json and its dependencies is through
+Homebrew, the Mac package manager: http://mxcl.github.com/homebrew/
+Once homebrew is setup, simply run "brew install pdf2json"
+
+2. You also need both this script (ads_pdf_ingest.py) and the ADS to BibDesk
+command line interface (adsbibdesk.py) to be somewhere in your path.
+/usr/bin/local works, for example.
+
+Usage
+----
+
+    ads_pdf_ingest.py my_pdf_dir/
+
+where 'my_pdf_dir' is full of PDFs you want to add to BibDesk with ADS
+metadata.
+
+2012-09-06 - Created by Jonathan Sick (jonathansick@mac.com; @jonathansick)
 """
 
 import re
