@@ -28,6 +28,7 @@ Input may be one of the following:
 """
 import sys
 import os
+import glob
 import re
 import time
 import optparse
@@ -614,26 +615,37 @@ class EmbeddedInsertionScript(object):
     def __init__(self):
         super(EmbeddedInsertionScript, self).__init__()
         self._txtData = "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"
-        self.compiledPath = os.path.expanduser("~/.adsbibdesk_injector.scpt")
+        self.version = 1  # serializes the current version of this script
+        self.compiledPath = os.path.expanduser(
+                "~/.adsbibdesk_injector_%i.scpt" % self.version)
 
     def install(self):
         """Install the compiled script"""
+        self._clean_old_scripts()
+        if os.path.exists(self.compiledPath):
+            return
         # Write the embedded applescript to a temp file
         scptTxt = zlib.decompress(binascii.a2b_base64(self._txtData))
         txtPath = tempfile.mktemp() + '.applescript'
         tmpFile = open(txtPath, 'w')
         tmpFile.write(scptTxt)
         tmpFile.close()
-        # Compile the applescript
-        if os.path.exists(self.compiledPath):
-            pass
-            # print "Compiled applescript %s already exists; skipping compile step" % self.compiledPath
-            # os.remove(self.compiledPath)
-        else:
-            cmd = "osacompile -o %s %s" % (self.compiledPath, txtPath)
-            # print "Compiling applescript via:"
-            # print cmd
-            subprocess.call(cmd, shell=True)
+        cmd = "osacompile -o %s %s" % (self.compiledPath, txtPath)
+        # print "Compiling applescript via:"
+        # print cmd
+        subprocess.call(cmd, shell=True)
+
+    def _clean_old_scripts(self):
+        """Find all injector scripts, and make sure that only the current one
+        exists
+        """
+        paths = glob.glob(os.path.expanduser("~/.adsbibdesk_injector*.scpt"))
+        for p in paths:
+            if p == self.compiledPath:
+                continue
+            else:
+                os.remove(p)
+    
 
 
 if __name__ == '__main__':

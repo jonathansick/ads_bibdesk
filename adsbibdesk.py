@@ -28,6 +28,7 @@ Input may be one of the following:
 """
 import sys
 import os
+import glob
 import re
 import time
 import optparse
@@ -614,26 +615,37 @@ class EmbeddedInsertionScript(object):
     def __init__(self):
         super(EmbeddedInsertionScript, self).__init__()
         self._txtData = "==SCPT=="
-        self.compiledPath = os.path.expanduser("~/.adsbibdesk_injector.scpt")
+        self.version = 1  # serializes the current version of this script
+        self.compiledPath = os.path.expanduser(
+                "~/.adsbibdesk_injector_%i.scpt" % self.version)
 
     def install(self):
         """Install the compiled script"""
+        self._clean_old_scripts()
+        if os.path.exists(self.compiledPath):
+            return
         # Write the embedded applescript to a temp file
         scptTxt = zlib.decompress(binascii.a2b_base64(self._txtData))
         txtPath = tempfile.mktemp() + '.applescript'
         tmpFile = open(txtPath, 'w')
         tmpFile.write(scptTxt)
         tmpFile.close()
-        # Compile the applescript
-        if os.path.exists(self.compiledPath):
-            pass
-            # print "Compiled applescript %s already exists; skipping compile step" % self.compiledPath
-            # os.remove(self.compiledPath)
-        else:
-            cmd = "osacompile -o %s %s" % (self.compiledPath, txtPath)
-            # print "Compiling applescript via:"
-            # print cmd
-            subprocess.call(cmd, shell=True)
+        cmd = "osacompile -o %s %s" % (self.compiledPath, txtPath)
+        # print "Compiling applescript via:"
+        # print cmd
+        subprocess.call(cmd, shell=True)
+
+    def _clean_old_scripts(self):
+        """Find all injector scripts, and make sure that only the current one
+        exists
+        """
+        paths = glob.glob(os.path.expanduser("~/.adsbibdesk_injector*.scpt"))
+        for p in paths:
+            if p == self.compiledPath:
+                continue
+            else:
+                os.remove(p)
+    
 
 
 if __name__ == '__main__':
