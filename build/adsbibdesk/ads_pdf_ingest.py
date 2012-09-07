@@ -32,22 +32,26 @@ import os
 import glob
 import sys
 import subprocess
+import time
 
 
 def main():
     workDir = sys.argv[1]
-    print workDir
+    print "Searching", workDir
     pdfPaths = glob.glob(os.path.join(workDir, "*.pdf"))
     grabber = PDFDOIGrabber()
-    for pdfPath in pdfPaths:
+    for i, pdfPath in enumerate(pdfPaths):
+        print "%i of %i" % (i+1, len(pdfPaths))
         dois = grabber.search(pdfPath)
         if len(dois) == 0:
             print "No DOIs for", pdfPath
         else:
             for doi in dois:
-                print os.path.basename(pdfPath),
+                print os.path.basename(pdfPath), "=",
                 print doi
                 subprocess.call("adsbibdesk.py %s" % doi, shell=True)
+        # Pacing so ADS won't treat us like a reckless 'bot!
+        time.sleep(15.)
 
 
 class PDFDOIGrabber(object):
