@@ -47,7 +47,7 @@ def main():
             for doi in dois:
                 print os.path.basename(pdfPath),
                 print doi
-                subprocess.call("python adsbibdesk.py %s" % doi, shell="True")
+                subprocess.call("adsbibdesk.py %s" % doi, shell=True)
 
 
 class PDFDOIGrabber(object):

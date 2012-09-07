@@ -19,6 +19,7 @@ __author__ = 'Rui Pereira <rui.pereira@gmail.com>'
 
 import os
 import re
+import subprocess
 from xml.etree import ElementTree
 
 def compress(obj):
@@ -40,6 +41,8 @@ if __name__ == '__main__':
     f = open('build/adsbibdesk/adsbibdesk.py', 'w')
     f.write(tmp)
     f.close()
+    # Executable as a CLI interface for ADS to BibDesk unto its own
+    subprocess.call("chmod +x build/adsbibdesk/adsbibdesk.py", shell=True)
 
     for workflow in (service, app):
         xml = ElementTree.fromstring(open(workflow).read())
