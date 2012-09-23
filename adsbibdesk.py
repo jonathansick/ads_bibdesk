@@ -28,6 +28,7 @@ Input may be one of the following:
 """
 import sys
 import os
+import fnmatch
 import glob
 import re
 import time
@@ -53,11 +54,23 @@ socket.setdefaulttimeout(30)
 def main():
     """Parse options and launch main loop"""
     parser = optparse.OptionParser()
-    parser.add_option('-d', '--debug', dest="debug", default=False, action="store_true")
-    options, articleID = parser.parse_args()
+    parser.add_option('-d', '--debug',
+            dest="debug", default=False, action="store_true")
+    parser.add_option('-p', '--ingest_pdfs',
+            dest="ingestPdfs", default=False, action="store_true")
+    parser.add_option('-r', '--recursive',
+            dest='recursive', default=True, action="store_false")
+    options, args = parser.parse_args()
 
-    if len(articleID) == 1:
-        articleTokens = list(articleID)
+    if options.ingestPdfs:
+        ingest_pdfs(args)
+    else:
+        process_articles(options, args)
+
+def process_articles(options, args):
+    """Workflow for processing article tokens"""
+    if len(args) == 1:
+        articleTokens = list(args)
     else:
         # Try to use standard input
         articleTokens = map(lambda s: s.strip(), sys.stdin.readlines())
@@ -107,6 +120,47 @@ def process_token(articleToken, prefs, insertScript):
     if prefs['debug']:
         print cmd
     subprocess.call(cmd, shell=True)
+
+
+def ingest_pdfs(options, args):
+    """Workflow for attempting to ingest a directory of PDFs into BibDesk.
+    
+    This workflow attempts to scape DOIs from the PDF text, which are then
+    added to BibDesk using the usual `process_token` function.
+    """
+    pdfDir = args
+    print "Searching", pdfDir
+   
+    if options.recursive:
+        pdfPaths = []
+        for root, dirnames, filenames in os.walk(pdfDir):
+            for filename in fnmatch.filter(filenames, '*.pdf'):
+                pdfPaths.append(os.path.join(root, filename))
+    else:
+        pdfPaths = glob.glob(os.path.join(pdfDir, "*.pdf"))
+
+    # Get preferences from (optional) config file
+    prefs = Preferences()
+    if options.debug:
+        prefs['debug'] = True
+
+    # Make the embedder script
+    insertScript = EmbeddedInsertionScript()
+    insertScript.install()
+
+    # Process each PDF, looking for a DOI
+    grabber = PDFDOIGrabber()
+    for i, pdfPath in enumerate(pdfPaths):
+        print "%i of %i" % (i + 1, len(pdfPaths))
+        dois = grabber.search(pdfPath)
+        if len(dois) == 0:
+            print "No DOIs for", pdfPath
+        else:
+            for doi in dois:
+                print os.path.basename(pdfPath), "=", doi
+                process_token(doi, prefs, insertScript)
+        # Pacing so ADS won't treat us like a reckless 'bot!
+        time.sleep(15.)
 
 
 class ADSConnector(object):
@@ -621,6 +675,28 @@ class EmbeddedInsertionScript(object):
                 continue
             else:
                 os.remove(p)
+
+
+class PDFDOIGrabber(object):
+    """Converts PDFs to text (via pdf2json) and attempts to match all DOIs
+    in that text.
+    """
+    def __init__(self):
+        super(PDFDOIGrabber, self).__init__()
+        regstr = r'\b(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?!["&\'<>])\S)+)\b'
+        self.pattern = re.compile(regstr)
+
+    def search(self, pdfPath):
+        """Return a list of DOIs in the text of the PDF at `pdfPath`"""
+        jsonPath = os.path.splitext(pdfPath)[0] + ".json"
+        if os.path.exists(jsonPath): os.remove(jsonPath)
+        subprocess.call("pdf2json -q %s %s" % (pdfPath, jsonPath), shell=True)
+        f = open(jsonPath, 'r')
+        data = f.read()
+        f.close()
+        doiMatches = self.pattern.findall(data)
+        if os.path.exists(jsonPath): os.remove(jsonPath)
+        return doiMatches
 
 
 if __name__ == '__main__':
