@@ -5,7 +5,6 @@ ADS to BibDesk is an Automator service that allows you to automatically retrieve
 
 ADS to BibDesk comes in two flavours. The *Service* version should be used by Mac OS X 10.6 Snow Leopard users working in Safari or other Cocoa applications. A legacy *Application* version is also available for Mac OS X 10.5 users, and users of non-Cocoa applications (*e.g.* Firefox).
 
-
 Quick Instructions
 ------------------
 
@@ -26,6 +25,17 @@ The bibtex and abstract of the article will be copied into your currently-open B
 
 For more details, see the [ADS to BibDesk homepage](http://www.jonathansick.ca/adsbibdesk/index.html).
 
+Install ADS to BibDesk on the Command Line
+------------------------------------------
+
+ADS to BibDesk can also be run directly from the command line.
+Once you've checked out the source, and cd'd into the `ads_bibdesk` directory, run:
+
+    cd build/adsbibdesk
+    python setup.py install
+
+You may need to run the last command with `sudo`.
+
 Developer Notes
 ---------------
 
@@ -34,12 +44,13 @@ ADS to BibDesk is built around two source files
 1. `adsbibdesk.py` &mdash; scrapes arXiv and ADS pages for bibliographic information
 2. `adsbibdesk.scpt` &mdash; adds the bibtex, abstract and PDF to BibDesk using AppleScript hooks.
 
-These sources are used by the Apple Automator files and `update_bibdesk_arxiv.sh`. Thus after editing either of the adsbibdesk source files, run the `build.py` script to update the Automator files and shell scripts.
+These sources are used by the Apple Automator files and `update_bibdesk_arxiv.sh`.
+Thus after editing either of the adsbibdesk source files, run the `build.py` script to update the Automator files and shell scripts.
 
 License
 -------
 
-Copyright 2011 Jonathan Sick, Rui Pereira and Dan-Foreman Mackey
+Copyright 2012 Jonathan Sick, Rui Pereira and Dan-Foreman Mackey
 
 ADS to BibDesk is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
