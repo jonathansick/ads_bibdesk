@@ -53,13 +53,43 @@ socket.setdefaulttimeout(30)
 
 def main():
     """Parse options and launch main loop"""
-    parser = optparse.OptionParser()
+    usage = "Usage: %prog [options] [article_token or pdf_directory]"
+    version = "3.0.1"
+    description = """adsbibdesk helps you add astrophysics articles listed
+on NASA/ADS and arXiv.org to your BibDesk database. There are two modes
+in this command line interface:
+
+1. Article mode, for adding single papers to BibDesk given tokens.
+2. PDF Ingest mode, where PDFs in a directory are analyzed and added to
+   BibDesk with ADS meta data.
+In article mode, adsbibdesk accepts many kinds of article tokens:
+The URL of an ADS or arXiv article page,
+The ADS bibcode of an article (e.g. 1998ApJ...500..525S), or
+the arXiv identifier of an article (e.g. 0911.4956).
+(Example: `adsbibdesk 1998ApJ...500..525S`)
+In PDF Ingest mode, you specify a directory containing PDFs instead of
+an article token (Example: `adsbibdesk -p pdfs` will ingest PDFs from
+the pdfs/ directory).
+"""
+    epilog = "For more information, visit www.jonathansick.ca/adsbibdesk" \
+             + " email jonathansick at mac.com or tweet @jonathansick"
+    parser = optparse.OptionParser(usage=usage, version=version,
+            description=description, epilog=epilog)
     parser.add_option('-d', '--debug',
-            dest="debug", default=False, action="store_true")
-    parser.add_option('-p', '--ingest_pdfs',
-            dest="ingestPdfs", default=False, action="store_true")
-    parser.add_option('-r', '--recursive',
-            dest='recursive', default=True, action="store_false")
+            dest="debug", default=False, action="store_true",
+            help="Debug mode; prints extra statements")
+    pdfIngestGroup = optparse.OptionGroup(parser, "PDF Ingest Mode",
+            description=None)
+    pdfIngestGroup.add_option('-p', '--ingest_pdfs',
+            dest="ingestPdfs", default=False, action="store_true",
+            help="Ingest a folder of PDFs."
+                 " Positional argument should be directory"
+                 " containing PDFs."
+                 " e.g., `adsbibdesk -p .` for the current directory")
+    pdfIngestGroup.add_option('-r', '--recursive',
+            dest='recursive', default=True, action="store_false",
+            help="Search for PDFs recursively in the directory tree.")
+    parser.add_option_group(pdfIngestGroup)
     options, args = parser.parse_args()
 
     if options.ingestPdfs:
