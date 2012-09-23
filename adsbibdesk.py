@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 ADS to BibDesk -- frictionless import of ADS publications into BibDesk
-Copyright (C) 2011  Rui Pereira <rui.pereira@gmail.com> and
+Copyright (C) 2012  Rui Pereira <rui.pereira@gmail.com> and
                     Jonathan Sick <jonathansick@mac.com>
 
 This program is free software: you can redistribute it and/or modify
@@ -50,22 +50,17 @@ from htmlentitydefs import name2codepoint
 socket.setdefaulttimeout(30)
 
 
-
-
 def main():
-    """
-    Parse options and launch main loop
-    """
+    """Parse options and launch main loop"""
     parser = optparse.OptionParser()
     parser.add_option('-d', '--debug', dest="debug", default=False, action="store_true")
-    parser.add_option('-u', '--update_arxiv', default=False, action="store_true")
     options, articleID = parser.parse_args()
 
     if len(articleID) == 1:
-        articleIDs = list(articleID)
+        articleTokens = list(articleID)
     else:
         # Try to use standard input
-        articleIDs = map(lambda s: s.strip(), sys.stdin.readlines())
+        articleTokens = map(lambda s: s.strip(), sys.stdin.readlines())
 
     # Get preferences from (optional) config file
     prefs = Preferences()
@@ -76,61 +71,42 @@ def main():
     insertScript = EmbeddedInsertionScript()
     insertScript.install()
 
-    # multiple arguments - bibcodes to compare with ADS
-    if options.update_arxiv or len(articleIDs) > 1:
-        changed = open('changed_arxiv', 'w')
-        for n, bibcode in enumerate(articleIDs):
-            # sleep for 15 seconds, to prevent ADS flooding
-            time.sleep(15)
-            if prefs['debug']:
-                print "bibcode", bibcode
-            # these are ADS bibcodes by default
-            adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'], 'abs/%s' % bibcode, '', ''))
-            if prefs['debug']:
-                print "adsURL", adsURL
-            # parse the ADS HTML file
-            ads = ADSHTMLParser(prefs=prefs)
-            ads.parse(adsURL)
-            if prefs['debug']:
-                print "ads.bibtex", ads.bibtex
-            if ads.bibtex is None: # ADSHTMLParser failed
-                if prefs['debug']:
-                    print "FAILURE: ads.bibtex is None!"
-                continue
-            if ads.bibtex.bibcode != bibcode:
-                print '%i. %s has become %s' % (n+1, bibcode, ads.bibtex.bibcode)
-                print >> changed, bibcode
-            else:
-                print '%i. %s has not changed' % (n+1, bibcode)
-                continue
-        changed.close()
+    for articleToken in articleTokens:
+        process_token(articleToken, prefs, insertScript)
+        if len(articleTokens) > 1: time.sleep(15)
 
-    # normal call
-    else:
-        # Determine what we're dealing with. The goal is to get a URL into ADS
-        # adsURL = parseURL(articleID[0], prefs)
-        if prefs['debug']: print "article token", articleIDs[0]
-        connector = ADSConnector(articleIDs[0], prefs)
-        if prefs['debug']: print "derived url", connector.adsURL
-        if connector.adsRead is None:
-            sys.exit()
 
-        # parse the ADS HTML file
-        ads = ADSHTMLParser(prefs=prefs)
-        ads.parse(connector.adsRead)
-        # pdf local file, title, first author, abstract, bibtex code
-        # UTF-8 encoded
-        output = ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
-                                                        ads.title, '|||',
-                                                        ads.author[0], '|||',
-                                                        ads.abstract, '|||',
-                                                        ads.bibtex.__str__()]))
-        # Escape double quotes
-        output = output.replace('"', '\\"')
-        cmd = 'osascript %s "%s"' % (insertScript.compiledPath, output)
-        if prefs['debug']:
-            print cmd
-        subprocess.call(cmd, shell=True)
+def process_token(articleToken, prefs, insertScript):
+    """Process a single article token from the user.
+    :param articleToken: Any user-supplied `str` token.
+    :param prefs": A `Preferences` instance.
+    :param insertScript: An `EmbeddedInsertionScript` instance.
+    """
+    # Determine what we're dealing with. The goal is to get a URL into ADS
+    # adsURL = parseURL(articleID[0], prefs)
+    if prefs['debug']: print "article token", articleToken
+    connector = ADSConnector(articleToken, prefs)
+    if prefs['debug']: print "derived url", connector.adsURL
+    if connector.adsRead is None:
+        if prefs['debug']: "skipping", articleToken
+        return
+
+    # parse the ADS HTML file
+    ads = ADSHTMLParser(prefs=prefs)
+    ads.parse(connector.adsRead)
+    # pdf local file, title, first author, abstract, bibtex code
+    # UTF-8 encoded
+    output = ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
+                                                    ads.title, '|||',
+                                                    ads.author[0], '|||',
+                                                    ads.abstract, '|||',
+                                                    ads.bibtex.__str__()]))
+    # Escape double quotes
+    output = output.replace('"', '\\"')
+    cmd = 'osascript %s "%s"' % (insertScript.compiledPath, output)
+    if prefs['debug']:
+        print cmd
+    subprocess.call(cmd, shell=True)
 
 
 class ADSConnector(object):
@@ -645,11 +621,7 @@ class EmbeddedInsertionScript(object):
                 continue
             else:
                 os.remove(p)
-    
 
 
 if __name__ == '__main__':
     main()
-    # test_mnras()
-    # scpt = EmbeddedInsertionScript()
-    # scpt.install()
