@@ -113,7 +113,7 @@ socket.setdefaulttimeout(30)
 def main():
     """Parse options and launch main loop"""
     usage = "Usage: %prog [options] [article_token or pdf_directory]"
-    version = "3.0.1"
+    version = "3.0.2"
     description = """adsbibdesk helps you add astrophysics articles listed
 on NASA/ADS and arXiv.org to your BibDesk database. There are two modes
 in this command line interface:
@@ -152,7 +152,7 @@ the pdfs/ directory).
     options, args = parser.parse_args()
 
     if options.ingestPdfs:
-        ingest_pdfs(args)
+        ingest_pdfs(options, args)
     else:
         process_articles(options, args)
 
@@ -217,10 +217,14 @@ def ingest_pdfs(options, args):
     This workflow attempts to scape DOIs from the PDF text, which are then
     added to BibDesk using the usual `process_token` function.
     """
-    pdfDir = args
+    assert len(args) == 1, "Please pass a path to a directory"
+    pdfDir = args[0]
+    assert os.path.exists(pdfDir) is True, "%s does not exist" % pdfDir
     print "Searching", pdfDir
    
     if options.recursive:
+        # Recursive glob solution from
+        # http://stackoverflow.com/questions/2186525/use-a-glob-to-find-files-recursively-in-python
         pdfPaths = []
         for root, dirnames, filenames in os.walk(pdfDir):
             for filename in fnmatch.filter(filenames, '*.pdf'):
@@ -249,7 +253,7 @@ def ingest_pdfs(options, args):
                 print os.path.basename(pdfPath), "=", doi
                 process_token(doi, prefs, insertScript)
         # Pacing so ADS won't treat us like a reckless 'bot!
-        time.sleep(15.)
+        if len(dois) &gt; 1: time.sleep(15.)
 
 
 class ADSConnector(object):

@@ -15,11 +15,9 @@ from setuptools import setup
 
 setup(
     name='adsbibdesk',
-    version='3.0.1',
+    version='3.0.2',
     py_modules=['adsbibdesk'],
     entry_points = {
-            'console_scripts': [
-            'adsbibdesk = adsbibdesk:main',
-            'ads_pdf_ingest = ads_pdf_ingest:main']
+            'console_scripts': ['adsbibdesk = adsbibdesk:main']
         }
 )
