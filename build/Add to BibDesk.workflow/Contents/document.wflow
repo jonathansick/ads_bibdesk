@@ -203,6 +203,8 @@ def process_token(articleToken, prefs, insertScript):
                                                     ads.author[0], '|||',
                                                     ads.abstract, '|||',
                                                     ads.bibtex.__str__()]))
+    # Escpe backslashes
+    output = output.replace('\\', '\\\\')
     # Escape double quotes
     output = output.replace('"', '\\"')
     cmd = 'osascript %s "%s"' % (insertScript.compiledPath, output)
