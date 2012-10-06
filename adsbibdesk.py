@@ -259,9 +259,17 @@ class ADSConnector(object):
     
     def _is_bibcode(self):
         """Test if the token corresponds to an ADS bibcode or DOI"""
+
         self.adsURL = urlparse.urlunsplit(('http', self.prefs['ads_mirror'],
                                            'doi/%s' % self.token, '', ''))
-        return self._read(self.adsURL)
+        read =  self._read(self.adsURL)
+        if read: 
+            return read
+        else:
+            self.adsURL = urlparse.urlunsplit(('http', self.prefs['ads_mirror'],
+                                               'abs/%s' % self.token, '', ''))
+            read =  self._read(self.adsURL)
+            return read
 
     def _is_ads_page(self):
         """Test if the token is a url to an ADS abstract page"""
