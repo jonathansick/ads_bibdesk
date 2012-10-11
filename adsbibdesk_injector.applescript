@@ -140,10 +140,13 @@ end safeDelete
 
 on run input
 	set defaultDelimiters to AppleScript's text item delimiters
-	set AppleScript's text item delimiters to " "
-	set input to (input as text)
+	-- input is a file path in tmp/ containing "payload", the metadata to inject
+	set input to (input as string)
+	set ff to open for access POSIX file input
+	set payload to read ff as text
 	set AppleScript's text item delimiters to "|||"
-	set {thePDFFile, theTitle, theAuthor, theAbstract, theBibEntry} to text items of input
+	set {thePDFFile, theTitle, theAuthor, theAbstract, theBibEntry} to text items of payload
+	close access ff
 	set AppleScript's text item delimiters to defaultDelimiters
 
 	tell document 1 of application "BibDesk"

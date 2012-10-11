@@ -54,7 +54,7 @@ socket.setdefaulttimeout(30)
 def main():
     """Parse options and launch main loop"""
     usage = "Usage: %prog [options] [article_token or pdf_directory]"
-    version = "3.0.2"
+    version = "3.0.5"
     description = """adsbibdesk helps you add astrophysics articles listed
 on NASA/ADS and arXiv.org to your BibDesk database. There are two modes
 in this command line interface:
@@ -97,6 +97,7 @@ the pdfs/ directory).
     else:
         process_articles(options, args)
 
+
 def process_articles(options, args):
     """Workflow for processing article tokens"""
     if len(args) == 1:
@@ -122,7 +123,7 @@ def process_articles(options, args):
 def process_token(articleToken, prefs, insertScript):
     """Process a single article token from the user.
     :param articleToken: Any user-supplied `str` token.
-    :param prefs": A `Preferences` instance.
+    :param prefs: A `Preferences` instance.
     :param insertScript: An `EmbeddedInsertionScript` instance.
     """
     # Determine what we're dealing with. The goal is to get a URL into ADS
@@ -145,13 +146,18 @@ def process_token(articleToken, prefs, insertScript):
                                                     ads.abstract, '|||',
                                                     ads.bibtex.__str__()]))
     # Escpe backslashes
-    output = output.replace('\\', '\\\\')
+    # output = output.replace('\\', '\\\\')
     # Escape double quotes
-    output = output.replace('"', '\\"')
-    cmd = 'osascript %s "%s"' % (insertScript.compiledPath, output)
+    # output = output.replace('"', '\\"')
+    f = tempfile.NamedTemporaryFile(delete=False, suffix=".txt")
+    if prefs['debug']: print "payload in tmp file:", f.name
+    f.write(output)
+    f.close()
+    cmd = 'osascript %s "%s"' % (insertScript.compiledPath, f.name)
     if prefs['debug']:
         print cmd
     subprocess.call(cmd, shell=True)
+    os.remove(f.name)
 
 
 def ingest_pdfs(options, args):
@@ -689,7 +695,7 @@ class EmbeddedInsertionScript(object):
     def __init__(self):
         super(EmbeddedInsertionScript, self).__init__()
         self._txtData = "==SCPT=="
-        self.version = 1  # serializes the current version of this script
+        self.version = 2  # serializes the current version of this script
         self.compiledPath = os.path.expanduser(
                 "~/.adsbibdesk_injector_%i.scpt" % self.version)
 
