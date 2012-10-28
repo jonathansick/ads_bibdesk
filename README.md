@@ -23,15 +23,29 @@ The bibtex and abstract of the article will be copied into your currently-open B
 
 For more details, see the [ADS to BibDesk homepage](http://www.jonathansick.ca/adsbibdesk/index.html).
 
-## Install ADS to BibDesk for the Command Line
+## ADS to BibDesk for the Command Line
 
 ADS to BibDesk can also be run directly from the command line.
-Once you've checked out the source, and cd'd into the `ads_bibdesk` directory, run:
 
+### Install for PyPI
+
+Tagged releases are available from the Python Package Index:
+
+    pip install adsbibdesk
+
+### Installing the Latest Version
+
+Alternatively you can always install the bleeding-edge development version:
+
+    git clone https://github.com/jonathansick/ads_bibdesk.git
+    cd ads_bibdesk/
+    python build.py
     cd build/adsbibdesk
     python setup.py install
 
 You may need to run the last command with `sudo`.
+
+### Command Line Usage
 
 Once ADS to BibDesk is installed, you can call it with the same types of article tokens you can launch the Service with, e.g.,
 
@@ -41,7 +55,7 @@ A full summary of `adsbibdesk` commands is available via
 
     adsbibdesk --help
 
-## Using PDF Ingest Mode
+### Using PDF Ingest Mode
 
 With the command-line ADS to BibDesk, you can ingest a folder of PDFs that originated from ADS into BibDesk.
 This is great for users who have amassed a literature folder, but are just starting to use BibDesk.
@@ -65,10 +79,9 @@ Note that this workflow relies on a DOI existing in the PDF. As such, it will no
 ADS to BibDesk is built around two source files
 
 1. `adsbibdesk.py` &mdash; scrapes arXiv and ADS pages for bibliographic information
-2. `adsbibdesk.scpt` &mdash; adds the bibtex, abstract and PDF to BibDesk using AppleScript hooks.
+2. `adsbibdesk_injector.applescript` &mdash; adds the bibtex, abstract and PDF to BibDesk using AppleScript hooks.
 
-These sources are used by the Apple Automator files and `update_bibdesk_arxiv.sh`.
-Thus after editing either of the adsbibdesk source files, run the `build.py` script to update the Automator files and shell scripts.
+Thus after editing either of the adsbibdesk source files, run the `build.py` script to update the Automator files and shell scripts in the `build/` directory.
 
 ## License
 
