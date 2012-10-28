@@ -22,29 +22,28 @@ import re
 import subprocess
 from xml.etree import ElementTree
 
-def compress(obj):
-    import binascii, zlib
-    return binascii.b2a_base64(zlib.compress(obj))
 
-if __name__ == '__main__':
-
-    service = os.path.join(os.path.dirname(__file__), 'build/Add to BibDesk.workflow/Contents/document.wflow')
-    app = os.path.join(os.path.dirname(__file__), 'build/ADS to BibDesk.app/Contents/document.wflow')
-    update_arxiv = os.path.join(os.path.dirname(__file__), 'update_bibdesk_arxiv.sh')
+def main():
+    rel_path = lambda path: os.path.join(os.path.dirname(__file__), path)
+    servicePath = rel_path("build/Add to BibDesk.workflow/Contents/document.wflow")
+    appPath = rel_path("build/ADS to BibDesk.app/Contents/document.wflow")
+    builtPyPath = rel_path("build/adsbibdesk/adsbibdesk.py")
+    origPyPath = rel_path("adsbibdesk.py")
+    injectorScptPath = rel_path("adsbibdesk_injector.applescript")
 
     # embed applescript into adsbibdesk.py script
-    f = open('adsbibdesk.py', 'r')
+    f = open(origPyPath, 'r')
     tmp = f.read()[:-1]
-    tmp = re.sub('==SCPT==', compress(open('adsbibdesk_injector.applescript').read()).strip(), tmp)
+    tmp = re.sub('==SCPT==', compress(open(injectorScptPath).read()).strip(), tmp)
     f.close()
-    if os.path.exists('build/adsbibdesk/adsbibdesk.py'): os.remove('build/adsbibdesk/adsbibdesk.py')
-    f = open('build/adsbibdesk/adsbibdesk.py', 'w')
+    if os.path.exists(builtPyPath): os.remove(builtPyPath)
+    f = open(builtPyPath, 'w')
     f.write(tmp)
     f.close()
     # Executable as a CLI interface for ADS to BibDesk unto its own
-    subprocess.call("chmod +x build/adsbibdesk/adsbibdesk.py", shell=True)
+    subprocess.call("chmod +x %s" % builtPyPath, shell=True)
 
-    for workflow in (service, app):
+    for workflow in (servicePath, appPath):
         xml = ElementTree.fromstring(open(workflow).read())
         for arr in xml.find('dict').find('array').getchildren():
 
@@ -55,13 +54,14 @@ if __name__ == '__main__':
 
             # rewrite with current files
             if py:
-                py[0].find('string').text = open('build/adsbibdesk/adsbibdesk.py').read()
+                py[0].find('string').text = open(builtPyPath).read()
 
         open(workflow, 'w').write(ElementTree.tostring(xml))
 
-    # replace into update arxiv script
-    # TODO updated .sh script will be deprecated
-    # tmp = open(update_arxiv).read()[:-1]
-    # tmp = re.sub('(?<=py=").*(?="\n)', compress(open('adsbibdesk_built.py').read()).strip(), tmp)
-    # tmp = re.sub('(?<=scpt=").*(?="\n)', compress(open('adsbibdesk.applescript').read()).strip(), tmp)
-    # print >> open(update_arxiv, 'w'), tmp
+
+def compress(obj):
+    import binascii, zlib
+    return binascii.b2a_base64(zlib.compress(obj))
+
+if __name__ == '__main__':
+    main()
