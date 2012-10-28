@@ -3,21 +3,36 @@
 """
 Installation for command-line ADS to BibDesk
 
-Run:
+Run::
+
     setup.py install
 
 and the binary adsbibdesk will be installed into your path.
-
-2012-09-23 - Created by Jonathan Sick
 """
 
+import os
 from setuptools import setup
+
+
+def read(fname):
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
 
 setup(
     name='adsbibdesk',
     version='3.0.5',
+    author='Jonathan Sick',
+    author_email='jonathansick@mac.com',
+    url="http://www.jonathansick.ca/adsbibdesk/",
+    description="Add papers from arxiv.org or NASA/SAO ADS to your BibDesk"
+                " bibliography.",
+    long_description=read('README'),
+    keywords="bibtex astronomy",
+    classifiers=["Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "Operating System :: MacOS :: MacOS X",
+        "Topic :: Scientific/Engineering :: Astronomy"],
     py_modules=['adsbibdesk'],
-    entry_points = {
-            'console_scripts': ['adsbibdesk = adsbibdesk:main']
-        }
+    entry_points = {'console_scripts': ['adsbibdesk = adsbibdesk:main']}
 )

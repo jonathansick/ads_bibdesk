@@ -1,0 +1,78 @@
+ADS to BibDesk: Command Line edition
+====================================
+
+This is the command line edition of ADS to BibDesk, a tool for retrieving the the bibtex, abstract and PDF of an astronomical journal article published on [ADS](http://adsabs.harvard.edu) or [arXiv.org](http://arxiv.org/archive/astro-ph) and add it to your [BibDesk](http://bibdesk.sourceforge.net/) database.
+
+Quickstart
+----------
+
+ADS to BibDesk can also be run directly from the command line.
+The command line script can be installed via::
+
+    python setup.py install
+
+You may need to run the last command with `sudo`.
+
+Once `adsbibdesk` is installed, you can call it with the same types of article tokens you can launch the Service with, e.g.,::
+
+    adsbibdesk 1998ApJ...500..525S
+
+A full summary of `adsbibdesk` commands is available via::
+
+    adsbibdesk --help
+
+Summary of articke tokens
+-------------------------
+
+* The URL of an ADS or arXiv article page,
+* The ADS bibcode of an article (e.g. 1998ApJ...500..525S),
+* The arXiv identifier of an article (e.g. 0911.4956), or
+* An article DOI
+
+Using PDF Ingest Mode
+---------------------
+
+With the command-line ADS to BibDesk, you can ingest a folder of PDFs that originated from ADS into BibDesk.
+This is great for users who have amassed a literature folder, but are just starting to use BibDesk.
+This will get you started quickly.
+
+You need the program `pdf2json<http://code.google.com/p/pdf2json/>`_ to use
+this script. The easiest way to get pdf2json and its dependencies is through
+`Homebrew<http://mxcl.github.com/homebrew/>`_, the Mac package manager.
+Once homebrew is setup, simply run `brew install pdf2json`.
+
+To run this workflow,::
+
+    adsbibdesk -p my_pdf_dir/
+
+where `my_pdf_dir/` is a directory containing PDFs that you want to ingest.
+
+Note that this workflow relies on a DOI existing in the PDF.
+As such, it will not identify astro-ph pre-prints, or published papers older than a few years.
+Typically the DOI is published on the first page of modern papers.
+This method was inspired by a script by `Dr Lucy Lim<http://www.mit.edu/people/lucylim/BibDesk.html`_.
+
+Developer Notes
+---------------
+
+Do not edit the `adsbibdesk.py` module in this build directory.
+It is built by running the `build.py` script at the root of the git repository.
+This build script is responsible for inserting AppleScript code into the Python module.
+
+License
+-------
+
+Copyright 2012 Jonathan Sick, Rui Pereira and Dan-Foreman Mackey
+
+ADS to BibDesk is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+ADS to BibDesk is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with ADS to BibDesk.  If not, see <http://www.gnu.org/licenses/>.
