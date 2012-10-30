@@ -92,24 +92,24 @@ the pdfs/ directory).
     parser.add_option_group(pdfIngestGroup)
     options, args = parser.parse_args()
 
+    # Get preferences from (optional) config file
+    prefs = Preferences()
+    if options.debug:
+        prefs['debug'] = True
+
     if options.ingestPdfs:
-        ingest_pdfs(options, args)
+        ingest_pdfs(options, args, prefs)
     else:
-        process_articles(options, args)
+        process_articles(options, args, prefs)
 
 
-def process_articles(options, args):
+def process_articles(options, args, prefs):
     """Workflow for processing article tokens"""
     if len(args) == 1:
         articleTokens = list(args)
     else:
         # Try to use standard input
         articleTokens = map(lambda s: s.strip(), sys.stdin.readlines())
-
-    # Get preferences from (optional) config file
-    prefs = Preferences()
-    if options.debug:
-        prefs['debug'] = True
 
     # Make the embedder script
     insertScript = EmbeddedInsertionScript()
@@ -160,7 +160,7 @@ def process_token(articleToken, prefs, insertScript):
     os.remove(f.name)
 
 
-def ingest_pdfs(options, args):
+def ingest_pdfs(options, args, prefs):
     """Workflow for attempting to ingest a directory of PDFs into BibDesk.
     
     This workflow attempts to scape DOIs from the PDF text, which are then
@@ -180,11 +180,6 @@ def ingest_pdfs(options, args):
                 pdfPaths.append(os.path.join(root, filename))
     else:
         pdfPaths = glob.glob(os.path.join(pdfDir, "*.pdf"))
-
-    # Get preferences from (optional) config file
-    prefs = Preferences()
-    if options.debug:
-        prefs['debug'] = True
 
     # Make the embedder script
     insertScript = EmbeddedInsertionScript()
