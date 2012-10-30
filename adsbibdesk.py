@@ -481,17 +481,27 @@ class ADSHTMLParser(HTMLParser):
                 #hexadecimal -> int values, for unichr
                 entities[s[0].strip()] = int(s[1].strip()[1:], 16)
         return entities
+
+    def parse_at_url(self, url):
+        """Helper method to read data from URL, and passes on to parse()."""
+        try:
+            htmlData = urllib2.urlopen(url).read()
+        except urllib2.URLError, err:
+            logging.debug("ADSHTMLParser timed out on URL: %s", url)
+            raise ADSException(err)
+        self.parse(htmlData)
     
-    def parse(self, url):
+    def parse(self, htmlData):
         """
         Feed url into our own HTMLParser and parse found bibtex
+
+        - htmlData is a string containing HTML data from ADS page.
         """
-        try:
-            self.feed(url.startswith('http') and urllib2.urlopen(url).read() or url)
-        # HTTP timeout
-        except urllib2.URLError, err:
-            logging.debug("ADSHTMLParser timed out: %s", url)
-            raise ADSException(err)
+        print "ADSHTMLParser on data", htmlData
+        print "ADSHTMLParser parse type", type(htmlData)
+
+        cleanContent = self._preprocess_html(htmlData)
+        self.feed(cleanContent)
 
         logging.debug("ADSHTMLParser found links: %s", str(self.links))
 
@@ -500,8 +510,13 @@ class ADSHTMLParser(HTMLParser):
             self.title = re.search('(?<={).+(?=})', self.bibtex.info['title']).group().replace('{', '').replace('}', '')
             self.author = [a.strip() for a in
                            re.search('(?<={).+(?=})', self.bibtex.info['author']).group().split(' and ')]
+
+    def _preprocess_html(self, htmlData):
+        """Cleans ADS HTML for compatibility with HTMLParser."""
+        return htmlData
     
     def handle_starttag(self, tag, attrs):
+        print "TAG:", tag, attrs
         #abstract
         if tag.lower() == 'hr' and self.get_abs:
             self.abstract = self.tag.strip().decode('utf-8')
