@@ -495,11 +495,8 @@ class ADSHTMLParser(HTMLParser):
         """
         Feed url into our own HTMLParser and parse found bibtex
 
-        - htmlData is a string containing HTML data from ADS page.
+        htmlData is a string containing HTML data from ADS page.
         """
-        print "ADSHTMLParser on data", htmlData
-        print "ADSHTMLParser parse type", type(htmlData)
-
         cleanContent = self._preprocess_html(htmlData)
         self.feed(cleanContent)
 
@@ -512,11 +509,17 @@ class ADSHTMLParser(HTMLParser):
                            re.search('(?<={).+(?=})', self.bibtex.info['author']).group().split(' and ')]
 
     def _preprocess_html(self, htmlData):
-        """Cleans ADS HTML for compatibility with HTMLParser."""
-        return htmlData
+        """Cleans ADS HTML for compatibility with HTMLParser.
+        
+        ADS inserts bibliographic data into the HTML header as meta data,
+        but does not escape these fields. The HTMLParser in Python 2.7.1
+        chokes on such bad HTML. Here we simply delete these metadata fields.
+        """
+        cleanData = "\n".join([line for line in htmlData.split("\n")
+            if not line.startswith("<meta name")])
+        return cleanData
     
     def handle_starttag(self, tag, attrs):
-        print "TAG:", tag, attrs
         #abstract
         if tag.lower() == 'hr' and self.get_abs:
             self.abstract = self.tag.strip().decode('utf-8')
