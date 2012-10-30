@@ -104,6 +104,9 @@ the pdfs/ directory).
     else:
         logging.basicConfig(level=logging.INFO)
 
+    logging.debug("ADS to BibDesk version %s", version)
+    logging.debug("Python: %s", sys.version)
+
     if options.ingestPdfs:
         ingest_pdfs(options, args, prefs)
     else:
