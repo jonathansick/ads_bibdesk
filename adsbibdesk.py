@@ -99,11 +99,17 @@ the pdfs/ directory).
         prefs['debug'] = True
 
     # Logging saves to log file on when in DEBUG mode
-    if prefs['debug']:
-        logging.basicConfig(filename=prefs['log_path'], level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.INFO)
+    # Always prints to STDOUT as well
+    logging.basicConfig(level=logging.DEBUG,
+        format='%(asctime)s %(name)s %(levelname)s %(message)s',
+        filename=prefs['log_path'])
+    if not prefs['debug']:
+        logging.getLogger('').setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    logging.getLogger('').addHandler(ch)
 
+    logging.info("Starting ADS to BibDesk")
     logging.debug("ADS to BibDesk version %s", version)
     logging.debug("Python: %s", sys.version)
 
