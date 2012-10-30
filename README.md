@@ -82,6 +82,11 @@ ADS to BibDesk is built around two source files
 2. `adsbibdesk_injector.applescript` &mdash; adds the bibtex, abstract and PDF to BibDesk using AppleScript hooks.
 
 Thus after editing either of the adsbibdesk source files, run the `build.py` script to update the Automator files and shell scripts in the `build/` directory.
+Our policy is to not track the built python module/script in the `build/adsbibdesk` directory (it is ignored). It can easily be built by running `build.py`.
+
+Further, although we need to track the Automator workflow, we don't need to commit changes to the Python script we embed in it. Thus it may be handy to ignore those changes by running
+
+    git update-index --assume-unchanged "build/Add to BibDesk.workflow/Contents/document.wflow"
 
 ## License
 
