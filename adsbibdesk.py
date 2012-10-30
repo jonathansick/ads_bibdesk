@@ -38,6 +38,7 @@ import socket
 import binascii
 import zlib
 import subprocess
+import logging
 
 import cgi
 import urllib2
@@ -96,6 +97,12 @@ the pdfs/ directory).
     prefs = Preferences()
     if options.debug:
         prefs['debug'] = True
+
+    # Logging saves to log file on when in DEBUG mode
+    if prefs['debug']:
+        logging.basicConfig(filename=prefs['log_path'], level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     if options.ingestPdfs:
         ingest_pdfs(options, args, prefs)
@@ -354,7 +361,8 @@ class Preferences(object):
                 "download_pdf": True,
                 "ssh_user": None,
                 "ssh_server": None,
-                "debug": False}
+                "debug": False,
+                "log_path": os.path.expanduser("~/.adsbibdesk.log")}
 
     def _getPrefs(self):
         """Read preferences files from `self.prefsPath`, creates one otherwise."""
