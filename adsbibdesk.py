@@ -135,11 +135,11 @@ def process_token(articleToken, prefs, insertScript):
     """
     # Determine what we're dealing with. The goal is to get a URL into ADS
     # adsURL = parseURL(articleID[0], prefs)
-    if prefs['debug']: print "article token", articleToken
+    logging.debug("process_token found article token %s", articleToken)
     connector = ADSConnector(articleToken, prefs)
-    if prefs['debug']: print "derived url", connector.adsURL
+    logging.debug("process_token derived url %s", connector.adsURL)
     if connector.adsRead is None:
-        if prefs['debug']: "skipping", articleToken
+        logging.debug("process_token skipping %s", articleToken)
         return
 
     # parse the ADS HTML file
@@ -157,12 +157,11 @@ def process_token(articleToken, prefs, insertScript):
     # Escape double quotes
     # output = output.replace('"', '\\"')
     f = tempfile.NamedTemporaryFile(delete=False, suffix=".txt")
-    if prefs['debug']: print "payload in tmp file:", f.name
+    logging.debug("process_token payload in tmp file: %s", f.name)
     f.write(output)
     f.close()
     cmd = 'osascript %s "%s"' % (insertScript.compiledPath, f.name)
-    if prefs['debug']:
-        print cmd
+    logging.debug("process_token osacript cmd: %s", cmd)
     subprocess.call(cmd, shell=True)
     os.remove(f.name)
 
@@ -228,12 +227,10 @@ class ADSConnector(object):
 
         # An arXiv identifier?
         if self._is_arxiv():
-            if self.prefs['debug']:
-                print "Found arXiv ID", self.token
+            logging.debug("ADSConnector found arXiv ID %s", self.token)
         # A bibcode from ADS?
         elif not self.urlParts.scheme and self._is_bibcode():
-            if self.prefs['debug']:
-                print "Found ADS bibcode / DOI", self.token
+            logging.debug("ADSConnector found bibcode/DOI %s", self.token)
         else:
             # If the path lacks http://, tack it on because the token *must* be a URL now
             if not self.token.startswith("http://"):
@@ -242,11 +239,9 @@ class ADSConnector(object):
 
             # An abstract page at any ADS mirror site?
             if self.urlParts.netloc in self.prefs.adsmirrors and self._is_ads_page():
-                if self.prefs['debug']:
-                    print "Found ADS page", self.token
+                logging.debug("ADSConnector found ADS page %s", self.token)
             elif "arxiv" in self.urlParts.netloc and self._is_arxiv_page():
-                if self.prefs['debug']:
-                    print "Found arXiv page", self.token
+                logging.debug("ADSConnector found arXiv page %s", self.token)
 
     def _is_arxiv(self):
         """Try to classify the token as an arxiv article, either:
@@ -486,13 +481,10 @@ class ADSHTMLParser(HTMLParser):
             self.feed(url.startswith('http') and urllib2.urlopen(url).read() or url)
         # HTTP timeout
         except urllib2.URLError, err:
-            if self.prefs['debug']:
-                print '%s timed out', url
+            logging.debug("ADSHTMLParser timed out: %s", url)
             raise ADSException(err)
 
-        if self.prefs['debug']:
-            print "ADSHTMLParser links:",
-            print self.links
+        logging.debug("ADSHTMLParser found links: %s", str(self.links))
 
         if 'bibtex' in self.links:
             self.bibtex = BibTex(self.links['bibtex'])
@@ -669,8 +661,7 @@ class MNRASParser(HTMLParser):
         try:
             self.feed(urllib2.urlopen(url).read())
         except urllib2.URLError, err: # HTTP timeout
-            if self.prefs['debug']:
-                print 'MNRAS timed out: %s' % url
+            logging.debug("MNRASParser timed out: %s", url)
             raise MNRASException(err)
         except HTMLParseError, err:
             raise MNRASException(err)
