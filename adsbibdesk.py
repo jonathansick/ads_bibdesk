@@ -55,7 +55,7 @@ socket.setdefaulttimeout(30)
 def main():
     """Parse options and launch main loop"""
     usage = "Usage: %prog [options] [article_token or pdf_directory]"
-    version = "3.0.5"
+    version = "3.0.6"
     description = """adsbibdesk helps you add astrophysics articles listed
 on NASA/ADS and arXiv.org to your BibDesk database. There are two modes
 in this command line interface:
