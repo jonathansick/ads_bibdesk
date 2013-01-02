@@ -62,7 +62,7 @@ This build script is responsible for inserting AppleScript code into the Python 
 License
 -------
 
-Copyright 2012 Jonathan Sick, Rui Pereira and Dan-Foreman Mackey
+Copyright 2013 Jonathan Sick, Rui Pereira and Dan-Foreman Mackey
 
 ADS to BibDesk is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

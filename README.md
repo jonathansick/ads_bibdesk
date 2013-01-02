@@ -19,7 +19,7 @@ Now activate the 'Add to BibDesk' scripts:
 
 The bibtex and abstract of the article will be copied into your currently-open BibDesk database. The scripts are now empowered to try download the article's PDF from ADS, or alternatively, arXiv. A Growl notification will appear when the import is complete.
 
-**Updating pre-prints:** From the terminal, run the new update_bibdesk_arxiv.sh shell script to automatically update any astro-ph pre-prints that have been recently refereed.
+**Updating pre-prints:** From the terminal, run the adsbibdesk python script with the `-u` option, to automatically update any astro-ph pre-prints that have been recently refereed.
 
 For more details, see the [ADS to BibDesk homepage](http://www.jonathansick.ca/adsbibdesk/index.html).
 
@@ -76,12 +76,8 @@ Note that this workflow relies on a DOI existing in the PDF. As such, it will no
 
 ## Developer Notes
 
-ADS to BibDesk is built around two source files
-
-1. `adsbibdesk.py` &mdash; scrapes arXiv and ADS pages for bibliographic information
-2. `adsbibdesk_injector.applescript` &mdash; adds the bibtex, abstract and PDF to BibDesk using AppleScript hooks.
-
-Thus after editing either of the adsbibdesk source files, run the `build.py` script to update the Automator files and shell scripts in the `build/` directory.
+ADS to BibDesk is built around a single python script `adsbibdesk.py`, that scrapes arXiv and ADS pages for bibliographic information.
+Thus after editing the source file, run the `build.py` script to update the Automator files and shell scripts in the `build/` directory.
 Our policy is to not track the built python module/script in the `build/adsbibdesk` directory (it is ignored). It can easily be built by running `build.py`.
 
 Further, although we need to track the Automator workflow, we don't need to commit changes to the Python script we embed in it. Thus it may be handy to ignore those changes by running
@@ -90,7 +86,7 @@ Further, although we need to track the Automator workflow, we don't need to comm
 
 ## License
 
-Copyright 2012 Jonathan Sick, Rui Pereira and Dan-Foreman Mackey
+Copyright 2013 Jonathan Sick, Rui Pereira and Dan-Foreman Mackey
 
 ADS to BibDesk is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

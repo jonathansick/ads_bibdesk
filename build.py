@@ -18,8 +18,7 @@
 __author__ = 'Rui Pereira <rui.pereira@gmail.com>'
 
 import os
-import re
-import subprocess
+import shutil
 from xml.etree import ElementTree
 
 
@@ -29,39 +28,26 @@ def main():
     appPath = rel_path("build/ADS to BibDesk.app/Contents/document.wflow")
     builtPyPath = rel_path("build/adsbibdesk/adsbibdesk.py")
     origPyPath = rel_path("adsbibdesk.py")
-    injectorScptPath = rel_path("adsbibdesk_injector.applescript")
 
-    # embed applescript into adsbibdesk.py script
-    f = open(origPyPath, 'r')
-    tmp = f.read()[:-1]
-    tmp = re.sub('==SCPT==', compress(open(injectorScptPath).read()).strip(), tmp)
-    f.close()
-    if os.path.exists(builtPyPath): os.remove(builtPyPath)
-    f = open(builtPyPath, 'w')
-    f.write(tmp)
-    f.close()
     # Executable as a CLI interface for ADS to BibDesk unto its own
-    subprocess.call("chmod +x %s" % builtPyPath, shell=True)
+    shutil.copy(origPyPath, builtPyPath)
+    os.chmod(builtPyPath, 0755)
 
     for workflow in (servicePath, appPath):
         xml = ElementTree.fromstring(open(workflow).read())
         for arr in xml.find('dict').find('array').getchildren():
 
-            # fetch Python and AppleScript code inside the xml
+            # fetch Python code inside the xml
             py = [c for c in arr.find('dict').getchildren()
                  if c.tag == 'dict' and
                  any([i.text and '/usr/bin/env' in i.text for i in c.getchildren()])]
 
-            # rewrite with current files
+            # rewrite with current file
             if py:
                 py[0].find('string').text = open(builtPyPath).read()
 
         open(workflow, 'w').write(ElementTree.tostring(xml))
 
-
-def compress(obj):
-    import binascii, zlib
-    return binascii.b2a_base64(zlib.compress(obj))
 
 if __name__ == '__main__':
     main()
