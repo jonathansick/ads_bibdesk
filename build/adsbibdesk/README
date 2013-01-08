@@ -1,7 +1,7 @@
 ADS to BibDesk: Command Line edition
 ====================================
 
-This is the command line edition of ADS to BibDesk, a tool for retrieving the the bibtex, abstract and PDF of an astronomical journal article published on [ADS](http://adsabs.harvard.edu) or [arXiv.org](http://arxiv.org/archive/astro-ph) and add it to your [BibDesk](http://bibdesk.sourceforge.net/) database.
+This is the command line edition of ADS to BibDesk, a tool for retrieving the bibtex, abstract and PDF of an astronomical journal article published on `ADS<http://adsabs.harvard.edu>`_ or `arXiv.org<http://arxiv.org/archive/astro-ph>`_ and add it to your `BibDesk<http://bibdesk.sourceforge.net/>`_ database.
 
 Quickstart
 ----------
@@ -21,16 +21,41 @@ A full summary of `adsbibdesk` commands is available via::
 
     adsbibdesk --help
 
-Summary of articke tokens
+Summary of article tokens
 -------------------------
 
 * The URL of an ADS or arXiv article page,
-* The ADS bibcode of an article (e.g. 1998ApJ...500..525S),
-* The arXiv identifier of an article (e.g. 0911.4956), or
-* An article DOI
+* The ADS bibcode of an article (e.g. `1998ApJ...500..525S`),
+* The arXiv identifier of an article (e.g. `0911.4956`), or
+* An article DOI.
 
-Using PDF Ingest Mode
----------------------
+Other Modes
+-----------
+
+Besides the primary mode (adding a single paper to BibDesk, ADS to BibDesk has three other modes: previewing papers, updated preprints, and ingesting PDF archives into BibDesk.
+
+Previewing Papers
+~~~~~~~~~~~~~~~~~
+
+Use the `-o` switch to simply download and view the PDF of an article without adding it to BibDesk. E.g.,::
+
+    adsbibdesk -o 1998ApJ...500..525S
+
+Updating Preprints
+~~~~~~~~~~~~~~~~~~
+
+Run ADS to BibDesk with the `-u` switch to find and update all astro-ph preprints in your BibDesk bibliography::
+
+    adsbibdesk -u
+
+To restrict this update to a date range, you can use the `--from_day` (`-f`) and `--to_day` (`-t`) flags with dates in `DD/MM/YY` format. For example, to update preprints published in 2012, run::
+
+    adsbibdesk -u --from_day=01/01/12 --to_day=31/12/12
+
+Note that this operation can take some time since we throttle requests to ADS to be a nicer robot.
+
+PDF Ingest Mode
+~~~~~~~~~~~~~~~
 
 With the command-line ADS to BibDesk, you can ingest a folder of PDFs that originated from ADS into BibDesk.
 This is great for users who have amassed a literature folder, but are just starting to use BibDesk.
@@ -55,9 +80,7 @@ This method was inspired by a script by `Dr Lucy Lim<http://www.mit.edu/people/l
 Developer Notes
 ---------------
 
-Do not edit the `adsbibdesk.py` module in this build directory.
-It is built by running the `build.py` script at the root of the git repository.
-This build script is responsible for inserting AppleScript code into the Python module.
+ADS to BibDesk is developed on GitHub at `https://github.com/jonathansick/ads_bibdesk<https://github.com/jonathansick/ads_bibdesk>`_. See the README there for information on how to compile the Python code across Service, App and command line versions.
 
 License
 -------
