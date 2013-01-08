@@ -181,14 +181,16 @@ def process_articles(args, prefs, delay=15):
         articleTokens = list(args)
     else:
         # Try to use standard input
-        articleTokens = map(lambda s: s.strip(), sys.stdin.readlines())
+        articleTokens = [s.strip()
+                         for s in sys.stdin.readlines()
+                         if s.strip()]
 
     # AppKit hook for BibDesk
     bibdesk = BibDesk()
 
     for articleToken in articleTokens:
         process_token(articleToken, prefs, bibdesk)
-        if len(articleTokens) > 1:
+        if len(articleTokens) > 1 and articleToken != articleTokens[-1]:
             time.sleep(delay)
 
     bibdesk.app.dealloc()
