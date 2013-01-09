@@ -48,9 +48,9 @@ Run ADS to BibDesk with the `-u` switch to find and update all astro-ph preprint
 
     adsbibdesk -u
 
-To restrict this update to a date range, you can use the `--from_day` (`-f`) and `--to_day` (`-t`) flags with dates in `DD/MM/YY` format. For example, to update preprints published in 2012, run::
+To restrict this update to a date range, you can use the `--from_date` (`-f`) and `--to_date` (`-t`) flags with dates in `MM/YY` format. For example, to update preprints published in 2012, run::
 
-    adsbibdesk -u --from_day=01/01/12 --to_day=31/12/12
+    adsbibdesk -u --from_date=01/12 --to_date=12/12
 
 Note that this operation can take some time since we throttle requests to ADS to be a nicer robot.
 
