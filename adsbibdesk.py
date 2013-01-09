@@ -134,10 +134,10 @@ updated if it has a new bibcode."""
     arXivUpdateGroup.add_option('-u', '--update_arxiv',
                                 default=False, action="store_true",
                                 help='Check arXiv pre-prints for updated bibcodes')
-    arXivUpdateGroup.add_option('-f', '--from_day',
-                                help='DD/MM/YY date when added to BibDesk from which to start updating arXiv')
-    arXivUpdateGroup.add_option('-t', '--to_day',
-                                help='DD/MM/YY date when added to BibDesk up to which update arXiv')
+    arXivUpdateGroup.add_option('-f', '--from_date',
+                                help='MM/YY date of publication from which to start updating arXiv')
+    arXivUpdateGroup.add_option('-t', '--to_date',
+                                help='MM/YY date of publication up to which update arXiv')
     parser.add_option_group(arXivUpdateGroup)
     options, args = parser.parse_args()
 
@@ -371,26 +371,31 @@ def update_arxiv(options, prefs):
     Workflow for updating arXiv pre-prints automatically with newer bibcodes
     (replaces update_bibdesk_arxiv.sh)
     """
-    assert options.from_day is None or \
-        re.match('^\d{2}/\d{2}/\d{2}$', options.from_day) is not None, \
-        '--from_day needs to be in DD/MM/YY format'
-    assert options.to_day is None or \
-        re.match('^\d{2}/\d{2}/\d{2}$', options.to_day) is not None, \
-        '--to_day needs to be in DD/MM/YY format'
+    assert options.from_date is None or \
+        re.match('^\d{2}/\d{2}$', options.from_date) is not None, \
+        '--from_date needs to be in MM/YY format'
+    assert options.to_date is None or \
+        re.match('^\d{2}/\d{2}$', options.to_date) is not None, \
+        '--to_date needs to be in MM/YY format'
+
+    def b2d(bibtex):
+        """BibTex -> publication date"""
+        m = re.search('Month = \{?(\w*)\}?', bibtex).group(1)
+        y = re.search('Year = \{?(\d{4})\}?', bibtex).group(1)
+        return datetime.datetime.strptime(m+y, '%b%Y')
 
     def recent(added, fdate, tdate):
-        # date to timestamp
-        d2ts = lambda d, f: datetime.datetime.fromtimestamp(
-            time.mktime(time.strptime(d, f)))
-        fromdate = fdate is not None and d2ts(fdate, '%d/%m/%y') \
-            or datetime.datetime(1900, 1, 1)
-        todate = tdate is not None and d2ts(tdate, '%d/%m/%y') \
-            or datetime.datetime(3000, 1, 1)
-        return fromdate <= d2ts(added, '%d:%m:%Y') <= todate
+        fromdate = fdate is not None and\
+                   datetime.datetime.strptime(fdate, '%m/%y')\
+                   or datetime.datetime(1900, 1, 1)
+        todate = tdate is not None and\
+                 datetime.datetime.strptime(tdate, '%m/%y')\
+                 or datetime.datetime(3000, 1, 1)
+        return fromdate <= added <= todate
 
     # frontmost opened BibDesk document
     bibdesk = BibDesk()
-    bibcodes = []
+    ids = []
 
     # check for adsurl containing arxiv or astro.ph bibcodes
     arxiv = bibdesk('return publications whose '
@@ -398,61 +403,58 @@ def update_arxiv(options, prefs):
                     '(value of field "Adsurl" contains "astro.ph")')
 
     if arxiv.numberOfItems():
-        # extract bibcode from the ADS url
-        bibs = [u.split('/')[-1].split('?')[-1] for u in
-                bibdesk('tell publications whose '
-                        '(value of field "Adsurl" contains "arXiv") or '
-                        '(value of field "Adsurl" contains "astro.ph") '
-                        'to return value of field "Adsurl"', strlist=True)]
-        dates = bibdesk('repeat with _pub in (publications whose '
-                        '(value of field "Adsurl" contains "arXiv") or '
-                        '(value of field "Adsurl" contains "astro.ph"))\n'
-                        'try\n _dates\n on error\n set _dates to {}\n end try\n'
-                        'set {year:y, month:m, day:d} to (added date) of _pub\n'
-                        'set end of _dates to (d as string)&":"&(m as integer)&":"&(y as integer)\n'
-                        'end repeat\n'
-                        'return _dates', strlist=True)
-        # bibcodes to search
-        bibcodes = [b for d, b in zip(dates, bibs)
-                    if recent(d, options.from_day, options.to_day)]
+        # extract arxiv id from the ADS url
+        ids = [u.split('bib_query?')[-1].split('abs/')[-1] for u in
+               bibdesk('tell publications whose '
+                       '(value of field "Adsurl" contains "arXiv") or '
+                       '(value of field "Adsurl" contains "astro.ph") '
+                       'to return value of field "Adsurl"', strlist=True)]
+        dates = [b2d(b) for b in
+                 bibdesk('tell publications whose '
+                         '(value of field "Adsurl" contains "arXiv") or '
+                         '(value of field "Adsurl" contains "astro.ph") '
+                         'to return bibtex string', strlist=True)]
+        # arxiv ids to search
+        ids = [b for d, b in zip(dates, ids)
+               if recent(d, options.from_date, options.to_date)]
 
     bibdesk.app.dealloc()
 
-    if not bibcodes:
+    if not ids:
         print 'Nothing to update!'
         sys.exit()
     else:
-        n = len(bibcodes)
+        n = len(ids)
         t = math.ceil(n * 15. / 60.)
         logging.info('Checking %i arXiv entries for changes...' % n)
         logging.info('(to prevent ADS flooding this will take a while, check back '
                      'in around %i %s)' % (t, t > 1 and 'minutes' or 'minute'))
 
     changed = []
-    for n, bibcode in enumerate(bibcodes):
+    for n, i in enumerate(ids):
         # sleep for 15 seconds, to prevent ADS flooding
         time.sleep(15)
-        logging.debug("bibcode %s" % bibcode)
+        logging.debug("arxiv id %s" % i)
         # these are ADS bibcodes by default
         adsURL = urlparse.urlunsplit(('http', prefs['ads_mirror'],
-                                     'abs/%s' % bibcode, '', ''))
+                                      'cgi-bin/bib_query', i, ''))
         logging.debug("adsURL %s" % adsURL)
         # parse the ADS HTML file
         ads = ADSHTMLParser(prefs=prefs)
         try:
             ads.parse_at_url(adsURL)
         except ADSException, err:
-            logging.debug('%s update failed: %s' % (bibcode, err))
+            logging.debug('%s update failed: %s' % (i, err))
             continue
         logging.debug("ads.bibtex %s" % ads.bibtex)
         if ads.bibtex is None:  # ADSHTMLParser failed
             logging.debug("FAILURE: ads.bibtex is None!")
             continue
-        if ads.bibtex.bibcode != bibcode:
-            logging.info('%i. %s has become %s' % (n + 1, bibcode, ads.bibtex.bibcode))
-            changed.append(bibcode)
+        if ads.bibtex.bibcode != i:
+            logging.info('%i. %s has become %s' % (n + 1, i, ads.bibtex.bibcode))
+            changed.append(i)
         else:
-            logging.info('%i. %s has not changed' % (n + 1, bibcode))
+            logging.info('%i. %s has not changed' % (n + 1, i))
             continue
 
     # run changed entries through the main loop
