@@ -1220,7 +1220,8 @@ class ArXivParser(object):
         """
         self.Author = ' and '.join(['{%s}, %s' % (a['name'].split()[-1],
                                                   '~'.join(a['name'].split()[:-1]))
-                                    for a in info['author']])
+                                    for a in info['author']
+                                    if len(a['name'].strip()) > 1]).encode('utf-8')
         self.Title = info['title'].encode('utf-8')
         self.Abstract = info['summary'].encode('utf-8')
         self.AdsComment = info['comment'].encode('utf-8')
@@ -1237,8 +1238,9 @@ class ArXivParser(object):
         return '@article{%s,\n' % self.Eprint +\
                '\n'.join(['%s = {%s},' % (k,v)
                           for k,v in
-                          sorted([(k,v) for k,v in self.__dict__.iteritems()
-                                  if k[0] in string.ascii_uppercase])]) +\
+                          sorted([(k, v.decode('utf-8'))
+                                  for k,v in self.__dict__.iteritems()
+                                  if k[0] in string.uppercase])]) +\
                '}'
 
 
