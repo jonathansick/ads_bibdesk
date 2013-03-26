@@ -660,9 +660,8 @@ class ADSConnector(object):
         """
         try:
             # remove <head>...</head> - often broken HTML
-            self.adsRead = re.sub('<head>.*</head>', '',
-                                  urllib2.urlopen(adsURL).read(),
-                                  flags=re.DOTALL)
+            self.adsRead = re.sub(r'<head>[\s\S]*</head>', '',
+                                  urllib2.urlopen(adsURL).read())
             return True
         except urllib2.HTTPError:
             return False
