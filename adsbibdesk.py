@@ -660,9 +660,8 @@ class ADSConnector(object):
         """
         try:
             # remove <head>...</head> - often broken HTML
-            self.adsRead = re.sub('<head>.*</head>', '',
-                                  urllib2.urlopen(adsURL).read(),
-                                  flags=re.DOTALL)
+            self.adsRead = re.sub(r'<head>[\s\S]*</head>', '',
+                                  urllib2.urlopen(adsURL).read())
             return True
         except urllib2.HTTPError:
             return False
@@ -958,7 +957,7 @@ class ADSHTMLParser(HTMLParser):
                            re.search('(?<={).+(?=})', self.bibtex.info['author']).group().split(' and ')]
             # bibtex do not have the comment from ADS
             if self.comment:
-                self.bibtex.info.update({'adscomment': '"' + self.comment + '"'})
+                self.bibtex.info.update({'adscomment': '"' + self.comment.replace('"',"'") + '"'})
             # construct ArXivURL from arXiv identifier
             if self.arxivid:
                 if 'arxiv_mirror' not in self.prefs or not self.prefs['arxiv_mirror']:
@@ -1224,7 +1223,7 @@ class ArXivParser(object):
                                     if len(a['name'].strip()) > 1]).encode('utf-8')
         self.Title = info['title'].encode('utf-8')
         self.Abstract = info['summary'].encode('utf-8')
-        self.AdsComment = info['comment'].encode('utf-8')
+        self.AdsComment = info['comment'].replace('"',"'").encode('utf-8')
         self.Jornal = 'ArXiv e-prints'
         self.ArchivePrefix = 'arXiv'
         self.ArXivURL = info['id']
