@@ -20,7 +20,7 @@ def read(fname):
 
 setup(
     name='adsbibdesk',
-    version='3.1',
+    version='3.1.1',
     author='Jonathan Sick',
     author_email='jonathansick@mac.com',
     url="http://www.jonathansick.ca/adsbibdesk/",

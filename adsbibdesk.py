@@ -106,7 +106,7 @@ the pdfs/ directory).
 
 In Pre-print Update mode, every article with an arXiv bibcode will be
 updated if it has a new bibcode."""
-    version = "3.1"
+    version = "3.1.1"
     epilog = "For more information, visit www.jonathansick.ca/adsbibdesk" \
              + " email jonathansick at mac.com or tweet @jonathansick"
     parser = optparse.OptionParser(usage=usage, version=version,
