@@ -1060,26 +1060,40 @@ class ADSHTMLParser(HTMLParser):
         # refereed
         if 'article' in self.links:
             url = self.links['article']
-            if "MNRAS" in url:  # Special case for MNRAS URLs to deal with iframe
+            # Resolve URL
+            connection = urllib2.urlopen(url)
+            resolved_url = connection.geturl()
+            logging.debug("Resolve article URL: %s" % resolved_url)
+            if "filetype=.pdf" in resolved_url:
+                # URL will directly resolve into a PDF
+                pdf_url = resolved_url
+            elif "MNRAS" in resolved_url:
+                # Special case for MNRAS URLs to deal with iframe
                 parser = MNRASParser(self.prefs)
                 try:
                     parser.parse(url)
                 except MNRASException:
-                    # this probably means we have a PDF directly from ADS, just continue
-                    pass
+                    # this probably means we have a PDF directly from ADS
+                    # afterall just continue.
+                    # NOTE this case may be deprecated by resolving the URL
+                    pdf_url = resolved_url
                 if parser.pdfURL is not None:
-                    url = parser.pdfURL
+                    pdf_url = parser.pdfURL
+                else:
+                    pdf_url = resolved_url
+            else:
+                pdf_url = resolved_url
 
             # try locally
             fd, pdf = tempfile.mkstemp(suffix='.pdf')
             # test for HTTP auth need
             try:
-                os.fdopen(fd, 'wb').write(urllib2.urlopen(url).read())
+                os.fdopen(fd, 'wb').write(urllib2.urlopen(pdf_url).read())
             except urllib2.HTTPError:
                 # dummy file
                 open(pdf, 'w').write('dummy')
             except urllib2.URLError:
-                logging.debug('%s timed out' % url)
+                logging.debug('%s timed out' % pdf_url)
                 pass
 
             if 'PDF document' in filetype(pdf):
@@ -1091,7 +1105,7 @@ class ADSHTMLParser(HTMLParser):
                 fd, pdf = tempfile.mkstemp(suffix='.pdf')
                 cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; wget -O adsbibdesk.pdf \\"%s\\"\"' % (self.prefs['ssh_user'],
                                                                                                self.prefs['ssh_server'],
-                                                                                               url)
+                                                                                               pdf_url)
                 cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' % (self.prefs['ssh_user'],
                                                            self.prefs['ssh_server'],
                                                            pdf)
@@ -1243,16 +1257,6 @@ class ArXivParser(object):
                '}'
 
 
-def test_mnras():
-    prefs = Preferences()
-    prefs['debug'] = True
-    data = '<iframe id="pdfDocument" src="http://onlinelibrary.wiley.com/store/10.1111/j.1365-2966.2010.18174.x/asset/j.1365-2966.2010.18174.x.pdf?v=1&amp;t=gp75eg4q&amp;s=c7ec3f26d269f5f4187799ff6faf44ebe01bbb01" width="100%" height="100%"></iframe>'
-    parser = MNRASParser(prefs)
-    # parser.parse(mnrasURL)
-    parser.feed(data)
-    print parser.pdfURL
-
-
 class MNRASException(Exception):
     pass
 
@@ -1270,9 +1274,21 @@ class MNRASParser(HTMLParser):
         self.pdfURL = None
 
     def parse(self, url):
-        """Parse URL to MNRAS PDF page"""
+        """Parse URL to MNRAS PDF from MNRAS article page.
+        """
         try:
-            self.feed(urllib2.urlopen(url).read())
+            # Detect and decode page's charset
+            logging.debug("Parsing MNRAS url %s" % url)
+            connection = urllib2.urlopen(url)
+            encoding = connection.headers.getparam('charset')
+            if encoding is not None:
+                logging.debug("Detected MNRAS encoding %s" % encoding)
+                page = connection.read().decode(encoding)
+                self.feed(page)
+            else:
+                logging.debug("No detected MNRAS encoding")
+                page = connection.read()
+                self.feed(page)
         except urllib2.URLError, err:  # HTTP timeout
             logging.debug("MNRASParser timed out: %s", url)
             raise MNRASException(err)
@@ -1280,15 +1296,13 @@ class MNRASParser(HTMLParser):
             raise MNRASException(err)
 
     def handle_starttag(self, tag, attrs):
+        """Called against each HTML tag, looks for metadata indicating
+        the PDF URL.
         """
-        def get_mnras_pdf(url):
-           soup = BeautifulSoup(urllib2.urlopen(url))
-           pdfurl = soup.find('iframe')['src']
-           open('mnras.pdf', 'wb').write(urllib2.urlopen(pdfurl).read())
-        """
-        if tag.lower() == "iframe":
-            attrDict = dict(attrs)
-            self.pdfURL = attrDict['src']
+        if tag.lower() == "meta":
+            attrs = dict(attrs)
+            if u'name' in attrs and attrs[u'name'] == u'citation_pdf_url':
+                self.pdfURL = attrs[u'content']
 
 
 if __name__ == '__main__':
