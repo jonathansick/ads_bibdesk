@@ -280,10 +280,13 @@ def process_token(articleToken, prefs, bibdesk):
     if found and difflib.SequenceMatcher(None,
                                          bibdesk.authors(bibdesk.pid(found[0]))[0],
                                          ads.author[0]).ratio() > .6:
-        keptPDFs += bibdesk.safe_delete(bibdesk.pid(found[0]))
-        notify('Duplicate publication removed',
-               articleToken, ads.title)
-        bibdesk.refresh()
+        # further comparison on abstract
+        abstract = bibdesk('abstract', bibdesk.pid(found[0])).stringValue()
+        if not abstract or difflib.SequenceMatcher(None, abstract, ads.abstract).ratio() > .6:
+            keptPDFs += bibdesk.safe_delete(bibdesk.pid(found[0]))
+            notify('Duplicate publication removed',
+                   articleToken, ads.title)
+            bibdesk.refresh()
 
     # add new entry
     pub = bibdesk('import from "%s"' % ads.bibtex.__str__().replace('\\', r'\\').replace('"', r'\"'))
