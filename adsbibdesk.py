@@ -1240,7 +1240,7 @@ class ArXivParser(object):
                                     if len(a['name'].strip()) > 1]).encode('utf-8')
         self.Title = info['title'].encode('utf-8')
         self.Abstract = info['summary'].encode('utf-8')
-        self.AdsComment = info['comment'].replace('"',"'").encode('utf-8')
+        self.AdsComment = info['comment'].replace('"',"'").encode('utf-8') if 'comment' in info else ""
         self.Jornal = 'ArXiv e-prints'
         self.ArchivePrefix = 'arXiv'
         self.ArXivURL = info['id']
