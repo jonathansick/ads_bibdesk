@@ -539,11 +539,11 @@ def hasAnnotations(f):
 
 def getRedirect(url):
     """Utility function to intercept final URL of HTTP redirection"""
-    import httplib
-    url = urlparse.urlsplit(url)
-    conn = httplib.HTTPConnection(url.netloc)
-    conn.request('GET', url.path + '?' + url.query)
-    return conn.getresponse().getheader('Location')
+    try:
+        out = urllib2.urlopen(url)
+    except urllib2.URLError, out:
+        pass
+    return out.geturl()
 
 
 class PDFDOIGrabber(object):
@@ -1079,8 +1079,7 @@ class ADSHTMLParser(HTMLParser):
         if 'article' in self.links:
             url = self.links['article']
             # Resolve URL
-            connection = urllib2.urlopen(url)
-            resolved_url = connection.geturl()
+            resolved_url = getRedirect(url)
             logging.debug("Resolve article URL: %s" % resolved_url)
             if "filetype=.pdf" in resolved_url:
                 # URL will directly resolve into a PDF
@@ -1107,12 +1106,10 @@ class ADSHTMLParser(HTMLParser):
             # test for HTTP auth need
             try:
                 os.fdopen(fd, 'wb').write(urllib2.urlopen(pdf_url).read())
-            except urllib2.HTTPError:
+            except urllib2.URLError, err: # HTTPError derives from URLError
+                logging.debug('%s failed: %s' % (pdf_url, err))
                 # dummy file
                 open(pdf, 'w').write('dummy')
-            except urllib2.URLError:
-                logging.debug('%s timed out' % pdf_url)
-                pass
 
             if 'PDF document' in filetype(pdf):
                 return pdf
