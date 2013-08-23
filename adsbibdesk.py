@@ -276,6 +276,7 @@ def process_token(articleToken, prefs, bibdesk):
     found = difflib.get_close_matches(ads.title, bibdesk.titles,
                                       n=1, cutoff=.7)
     keptPDFs = []
+    keptFields = {}
     # first author is the same
     if found and difflib.SequenceMatcher(None,
                                          bibdesk.authors(bibdesk.pid(found[0]))[0],
@@ -283,7 +284,15 @@ def process_token(articleToken, prefs, bibdesk):
         # further comparison on abstract
         abstract = bibdesk('abstract', bibdesk.pid(found[0])).stringValue()
         if not abstract or difflib.SequenceMatcher(None, abstract, ads.abstract).ratio() > .6:
-            keptPDFs += bibdesk.safe_delete(bibdesk.pid(found[0]))
+            pid = bibdesk.pid(found[0])
+            # keep all fields for later comparison (especially rating + read bool)
+            keptFields = dict((k,v) for k,v in
+                              zip(bibdesk('return name of fields', pid, True),
+                                  bibdesk('return value of fields', pid, True))
+                              if k != 'Adscomment') # Adscomment may be arXiv only
+            # plus BibDesk annotation
+            keptFields['BibDeskAnnotation'] = bibdesk('return its note', pid).stringValue()
+            keptPDFs += bibdesk.safe_delete(pid)
             notify('Duplicate publication removed',
                    articleToken, ads.title)
             bibdesk.refresh()
@@ -324,6 +333,12 @@ def process_token(articleToken, prefs, bibdesk):
     for keptPDF in keptPDFs:
         bibdesk('add POSIX file "%s" to end of linked files' % keptPDF, pub)
 
+    # re-insert custom fields
+    bibdesk('set its note to "%s"' % keptFields.pop('BibDeskAnnotation', ''), pub)
+    newFields = bibdesk('return name of fields', pub, True)
+    for k, v in keptFields.iteritems():
+        if k not in newFields:
+            bibdesk('set value of field "%s" to "%s"' % (k, v), pub)
     notify('New publication added',
            bibdesk('cite key', pub).stringValue(),
            ads.title)
