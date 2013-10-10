@@ -126,7 +126,7 @@ updated if it has a new bibcode."""
                                    " containing PDFs."
                                    " e.g., `adsbibdesk -p .` for the current directory")
     pdfIngestGroup.add_option('-r', '--recursive',
-                              dest='recursive', default=True, action="store_false",
+                              dest='recursive', action="store_true",
                               help="Search for PDFs recursively in the directory tree.")
     parser.add_option_group(pdfIngestGroup)
     arXivUpdateGroup = optparse.OptionGroup(parser, "Pre-print Update Mode",
@@ -189,7 +189,10 @@ def process_articles(args, prefs, delay=15):
     bibdesk = BibDesk()
 
     for articleToken in articleTokens:
-        process_token(articleToken, prefs, bibdesk)
+        try:
+            process_token(articleToken, prefs, bibdesk)
+        except ADSException, err:
+            logging.debug('%s failed - %s' % (articleToken, err))
         if len(articleTokens) > 1 and articleToken != articleTokens[-1]:
             time.sleep(delay)
 
@@ -370,10 +373,10 @@ def ingest_pdfs(options, args, prefs):
     found = []
     for i, pdfPath in enumerate(pdfPaths):
         dois = grabber.search(pdfPath)
-        if len(dois) == 0:
+        if not dois:
             logging.info("%i of %i: no DOIs for %s" % (i + 1, len(pdfPaths), pdfPath))
         else:
-            found.extend(list(dois))
+            found.extend(dois)
             for doi in dois:
                 logging.info("%i of %i: %s = %s" % (i + 1, len(pdfPaths),
                                                     os.path.basename(pdfPath), doi))
@@ -550,7 +553,7 @@ class PDFDOIGrabber(object):
     """Converts PDFs to text and attempts to match all DOIs"""
     def __init__(self):
         super(PDFDOIGrabber, self).__init__()
-        regstr = r'(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?!["&\'<>\)])\S)+)'
+        regstr = r'(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?!["&\'<>\)\.,])\S)+)'
         self.pattern = re.compile(regstr)
 
     def search(self, pdfPath):
@@ -571,7 +574,7 @@ class PDFDOIGrabber(object):
                             stderr=open('/dev/null', 'w')).stdout.read()
             doiMatches = self.pattern.findall(data)
 
-        return set(doiMatches)
+        return list(set(doiMatches))
 
 
 class ADSConnector(object):
@@ -635,7 +638,7 @@ class ADSConnector(object):
         - old style (astro-ph/YYMMNNN)
         :return: True if ADS page is recovered
         """
-        arxivPattern = re.compile('(\d{4,6}.\d{4,6}|astro\-ph/\d{7})')
+        arxivPattern = re.compile('(\d{4,6}\.\d{4,6}|astro\-ph/\d{7})')
         arxivMatches = arxivPattern.findall(self.token)
         if len(arxivMatches) == 1:
             self.arxivID = arxivMatches[0]
