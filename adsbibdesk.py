@@ -64,10 +64,10 @@ except ImportError:
         import AppKit
     except ImportError:
         import webbrowser
-        url = 'http://packages.python.org/pyobjc/install.html'
+        url = 'http://pythonhosted.org/pyobjc/install.html'
         msg = 'Please install PyObjC...'
         print msg
-        sp.call('osascript -e "tell application \\"System Events\\" to display dialog \\"%s\\" buttons {\\"OK\\"} default button \\"OK\\""' % msg,
+        sp.call(r'osascript -e "tell application \"System Events\" to display dialog \"%s\" buttons {\"OK\"} default button \"OK\""' % msg,
                 shell=True, stdout=open('/dev/null', 'w'))
         # open browser in PyObjC install page
         webbrowser.open(url)
@@ -694,7 +694,7 @@ class Preferences(object):
     """
 
     def __init__(self):
-        self.prefsPath = os.path.join(os.getenv('HOME'), '.adsbibdesk')
+        self.prefsPath = os.path.expanduser('~/.adsbibdesk')
         self._adsmirrors = ['adsabs.harvard.edu',
                             'cdsads.u-strasbg.fr',
                             'ukads.nottingham.ac.uk',
