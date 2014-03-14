@@ -859,6 +859,11 @@ class BibDesk(object):
         return output
 
     def refresh(self):
+        # is there an opened document yet?
+        if self('return name of first document '
+                'of application "BibDesk"', error=True)[1] is not None:
+            # create blank one
+            self('tell application "BibDesk" to make new document')
         self.titles = self('return title of publications', strlist=True)
         self.ids = self('return id of publications', strlist=True)
 
