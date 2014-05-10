@@ -7,6 +7,8 @@ ADS to BibDesk is a tool for retrieving the bibtex, abstract and PDF of an astro
 
 ADS to BibDesk comes in two flavours: an Automator Service that you can use to grab papers in any app (e.g., in Safari, or Mail), or a command line app.
 
+*Developers:* please read the `CONTRIBUTING <https://github.com/jonathansick/ads_bibdesk/blob/master/CONTRIBUTING.md>`_ document for details on how to build the ADS to BibDesk CLI/Service from source, make changes, and submit pull requests.
+
 Command Line Quickstart
 -----------------------
 
@@ -80,21 +82,6 @@ Note that this workflow relies on a DOI existing in the PDF.
 As such, it will not identify astro-ph pre-prints, or published papers older than a few years.
 Typically the DOI is published on the first page of modern papers.
 This method was inspired by a script by `Dr Lucy Lim <http://www.mit.edu/people/lucylim/BibDesk.html>`_.
-
-Developer Notes
----------------
-
-ADS to BibDesk is developed on GitHub at `https://github.com/jonathansick/ads_bibdesk <https://github.com/jonathansick/ads_bibdesk>`_.
-
-ADS to BibDesk is built around a single Python script, `adsbibdesk.py`, that scrapes arXiv and ADS pages for bibliographic information.
-
-To update the Automator Service or app in the `build/` directory, run::
-
-    python setup.py service
-
-Further, although we need to track the Automator workflow, we don't need to commit changes to the Python script we embed in it. Thus it may be handy to ignore those changes by running::
-
-    git update-index --assume-unchanged "build/Add to BibDesk.workflow/Contents/document.wflow"
 
 License
 -------
