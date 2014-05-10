@@ -86,8 +86,11 @@ Developer Notes
 
 ADS to BibDesk is developed on GitHub at `https://github.com/jonathansick/ads_bibdesk<https://github.com/jonathansick/ads_bibdesk>`_.
 
-ADS to BibDesk is built around a single python script `adsbibdesk.py`, that scrapes arXiv and ADS pages for bibliographic information.
-Thus after editing the source file, run the `build.py` script to update the Automator files `build/` directory.
+ADS to BibDesk is built around a single Python script, `adsbibdesk.py`, that scrapes arXiv and ADS pages for bibliographic information.
+
+To update the Automator Service or app in the `build/` directory, run::
+
+    python setup.py service
 
 Further, although we need to track the Automator workflow, we don't need to commit changes to the Python script we embed in it. Thus it may be handy to ignore those changes by running::
 

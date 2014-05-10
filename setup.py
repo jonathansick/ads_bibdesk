@@ -5,17 +5,72 @@ Installation for command-line ADS to BibDesk
 
 Run::
 
-    setup.py install
+    python setup.py install
 
 and the binary adsbibdesk will be installed into your path.
+
+To build the Add to BibDesk service, run::
+
+    python setup.py service
 """
 
 import os
-from setuptools import setup
+import logging
+from xml.etree import ElementTree
+from setuptools import setup, Command
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
+
+class BuildService(Command):
+    """Setuptools Command to build the Service and App.
+    
+    This replaces the build.py script.
+    """
+    description = "build Add to BibDesk.service(.app)"
+    user_options = []
+
+    def initialize_options(self):
+        """Init options"""
+        pass
+
+    def finalize_options(self):
+        """Finalize options"""
+        pass
+
+    def run(self):
+        """Runner"""
+        rel_path = lambda path: os.path.join(os.path.dirname(__file__), path)
+        service_path = rel_path(os.path.join("build",
+            "Add to BibDesk.workflow", "Contents", "document.wflow"))
+        app_path = rel_path(os.path.join("build", "ADS to BibDesk.app",
+            "Contents", "document.wflow"))
+        py_path = rel_path("adsbibdesk.py")
+
+        for workflow in (service_path, app_path):
+            xml = ElementTree.fromstring(open(workflow).read())
+            for arr in xml.find('dict').find('array').getchildren():
+
+                # fetch Python code inside the xml
+                py = [c for c in arr.find('dict').getchildren()
+                    if c.tag == 'dict' and
+                    any([i.text and '/usr/bin/env' in i.text
+                        for i in c.getchildren()])]
+
+                # rewrite with current file
+                if py:
+                    logger.info("Inserting {0} into {1}".format(py_path,
+                        workflow))
+                    py[0].find('string').text = open(py_path).read()
+
+            logger.info("Saving {0}".format(workflow))
+            open(workflow, 'w').write(ElementTree.tostring(xml))
+        logger.info("Completed ADS to BibDesk build step")
 
 
 setup(
@@ -34,5 +89,6 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Topic :: Scientific/Engineering :: Astronomy"],
     py_modules=['adsbibdesk'],
-    entry_points={'console_scripts': ['adsbibdesk = adsbibdesk:main']}
+    entry_points={'console_scripts': ['adsbibdesk = adsbibdesk:main']},
+    cmdclass={'service': BuildService}
 )
