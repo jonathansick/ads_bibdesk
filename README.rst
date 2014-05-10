@@ -1,9 +1,9 @@
 ADS to BibDesk
 ==============
 
-This is the command line edition of ADS to BibDesk, a tool for retrieving the bibtex, abstract and PDF of an astronomical journal article published on `ADS<http://adsabs.harvard.edu>`_ or `arXiv.org<http://arxiv.org/archive/astro-ph>`_ and add it to your `BibDesk<http://bibdesk.sourceforge.net/>`_ database.
+This is the command line edition of ADS to BibDesk, a tool for retrieving the bibtex, abstract and PDF of an astronomical journal article published on `ADS <http://adsabs.harvard.edu>`_ or `arXiv.org <http://arxiv.org/archive/astro-ph>`_ and add it to your `BibDesk <http://bibdesk.sourceforge.net/>`_ database.
 
-ADS to BibDesk is a tool for retrieving the bibtex, abstract and PDF of an astronomical journal article published on `ADS<http://adsabs.harvard.edu>`_ or `arXiv.org`<http://arxiv.org/archive/astro-ph>`_ and adding it to your `BibDesk<http://bibdesk.sourceforge.net/>`_ database.
+ADS to BibDesk is a tool for retrieving the bibtex, abstract and PDF of an astronomical journal article published on `ADS <http://adsabs.harvard.edu>`_ or `arXiv.org <http://arxiv.org/archive/astro-ph>`_ and adding it to your `BibDesk <http://bibdesk.sourceforge.net/>`_ database.
 
 ADS to BibDesk comes in two flavours: an Automator Service that you can use to grab papers in any app (e.g., in Safari, or Mail), or a command line app.
 
@@ -65,9 +65,9 @@ With the command-line ADS to BibDesk, you can ingest a folder of PDFs that origi
 This is great for users who have amassed a literature folder, but are just starting to use BibDesk.
 This will get you started quickly.
 
-You need the program `pdf2json<http://code.google.com/p/pdf2json/>`_ to use
+You need the program `pdf2json <http://code.google.com/p/pdf2json/>`_ to use
 this script. The easiest way to get pdf2json and its dependencies is through
-`Homebrew<http://mxcl.github.com/homebrew/>`_, the Mac package manager.
+`Homebrew <http://mxcl.github.com/homebrew/>`_, the Mac package manager.
 Once homebrew is setup, simply run `brew install pdf2json`.
 
 To run this workflow,::
@@ -79,12 +79,12 @@ where `my_pdf_dir/` is a directory containing PDFs that you want to ingest.
 Note that this workflow relies on a DOI existing in the PDF.
 As such, it will not identify astro-ph pre-prints, or published papers older than a few years.
 Typically the DOI is published on the first page of modern papers.
-This method was inspired by a script by `Dr Lucy Lim<http://www.mit.edu/people/lucylim/BibDesk.html`_.
+This method was inspired by a script by `Dr Lucy Lim <http://www.mit.edu/people/lucylim/BibDesk.html>`_.
 
 Developer Notes
 ---------------
 
-ADS to BibDesk is developed on GitHub at `https://github.com/jonathansick/ads_bibdesk<https://github.com/jonathansick/ads_bibdesk>`_.
+ADS to BibDesk is developed on GitHub at `https://github.com/jonathansick/ads_bibdesk <https://github.com/jonathansick/ads_bibdesk>`_.
 
 ADS to BibDesk is built around a single Python script, `adsbibdesk.py`, that scrapes arXiv and ADS pages for bibliographic information.
 
