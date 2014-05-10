@@ -15,6 +15,7 @@ To build the Add to BibDesk service, run::
 """
 
 import os
+import re
 import logging
 from xml.etree import ElementTree
 from setuptools import setup, Command
@@ -24,7 +25,20 @@ logger = logging.getLogger(__name__)
 
 
 def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+    return open(rel_path(fname)).read()
+
+
+def rel_path(path):
+    return os.path.join(os.path.dirname(__file__), path)
+
+
+def get_version():
+    with open(rel_path("adsbibdesk.py")) as f:
+        for line in f:
+            if line.startswith("VERSION"):
+                version = re.findall(r'\"(.+?)\"', line)[0]
+                return version
+    return "0.0.0.dev"
 
 
 class BuildService(Command):
@@ -45,7 +59,6 @@ class BuildService(Command):
 
     def run(self):
         """Runner"""
-        rel_path = lambda path: os.path.join(os.path.dirname(__file__), path)
         service_path = rel_path(os.path.join("build",
             "Add to BibDesk.workflow", "Contents", "document.wflow"))
         app_path = rel_path(os.path.join("build", "ADS to BibDesk.app",
@@ -75,7 +88,7 @@ class BuildService(Command):
 
 setup(
     name='adsbibdesk',
-    version='3.2.dev',
+    version=get_version(),
     author='Jonathan Sick',
     author_email='jonathansick@mac.com',
     url="http://www.jonathansick.ca/adsbibdesk/",
