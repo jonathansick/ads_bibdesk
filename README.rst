@@ -1,10 +1,14 @@
-ADS to BibDesk: Command Line edition
-====================================
+ADS to BibDesk
+==============
 
 This is the command line edition of ADS to BibDesk, a tool for retrieving the bibtex, abstract and PDF of an astronomical journal article published on `ADS<http://adsabs.harvard.edu>`_ or `arXiv.org<http://arxiv.org/archive/astro-ph>`_ and add it to your `BibDesk<http://bibdesk.sourceforge.net/>`_ database.
 
-Quickstart
-----------
+ADS to BibDesk is a tool for retrieving the bibtex, abstract and PDF of an astronomical journal article published on `ADS<http://adsabs.harvard.edu>`_ or `arXiv.org`<http://arxiv.org/archive/astro-ph>`_ and adding it to your `BibDesk<http://bibdesk.sourceforge.net/>`_ database.
+
+ADS to BibDesk comes in two flavours: an Automator Service that you can use to grab papers in any app (e.g., in Safari, or Mail), or a command line app.
+
+Command Line Quickstart
+-----------------------
 
 ADS to BibDesk can also be run directly from the command line.
 The command line script can be installed via::
@@ -80,12 +84,19 @@ This method was inspired by a script by `Dr Lucy Lim<http://www.mit.edu/people/l
 Developer Notes
 ---------------
 
-ADS to BibDesk is developed on GitHub at `https://github.com/jonathansick/ads_bibdesk<https://github.com/jonathansick/ads_bibdesk>`_. See the README there for information on how to compile the Python code across Service, App and command line versions.
+ADS to BibDesk is developed on GitHub at `https://github.com/jonathansick/ads_bibdesk<https://github.com/jonathansick/ads_bibdesk>`_.
+
+ADS to BibDesk is built around a single python script `adsbibdesk.py`, that scrapes arXiv and ADS pages for bibliographic information.
+Thus after editing the source file, run the `build.py` script to update the Automator files `build/` directory.
+
+Further, although we need to track the Automator workflow, we don't need to commit changes to the Python script we embed in it. Thus it may be handy to ignore those changes by running::
+
+    git update-index --assume-unchanged "build/Add to BibDesk.workflow/Contents/document.wflow"
 
 License
 -------
 
-Copyright 2013 Jonathan Sick, Rui Pereira and Dan-Foreman Mackey
+Copyright 2014 Jonathan Sick, Rui Pereira and Dan-Foreman Mackey
 
 ADS to BibDesk is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

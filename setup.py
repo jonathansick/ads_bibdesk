@@ -20,13 +20,13 @@ def read(fname):
 
 setup(
     name='adsbibdesk',
-    version='3.1.1',
+    version='3.2.dev',
     author='Jonathan Sick',
     author_email='jonathansick@mac.com',
     url="http://www.jonathansick.ca/adsbibdesk/",
     description="Add papers from arxiv.org or NASA/SAO ADS to your BibDesk"
                 " bibliography.",
-    long_description=read('README'),
+    long_description=read('README.rst'),
     keywords="bibtex astronomy",
     classifiers=["Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
@@ -34,5 +34,5 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Topic :: Scientific/Engineering :: Astronomy"],
     py_modules=['adsbibdesk'],
-    entry_points = {'console_scripts': ['adsbibdesk = adsbibdesk:main']}
+    entry_points={'console_scripts': ['adsbibdesk = adsbibdesk:main']}
 )
