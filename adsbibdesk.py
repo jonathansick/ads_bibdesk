@@ -80,7 +80,7 @@ from htmlentitydefs import name2codepoint
 # default timeout for url calls
 socket.setdefaulttimeout(30)
 
-VERSION = "3.2.dev"
+VERSION = "3.2.0"
 
 
 def main():
