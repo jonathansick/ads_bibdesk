@@ -103,5 +103,6 @@ setup(
         "Topic :: Scientific/Engineering :: Astronomy"],
     py_modules=['adsbibdesk'],
     entry_points={'console_scripts': ['adsbibdesk = adsbibdesk:main']},
+    use_2to3=True,
     cmdclass={'service': BuildService}
 )

@@ -267,6 +267,8 @@ def process_token(article_token, prefs, bibdesk):
 
     elif connector.ads_read is None:
         logging.debug("process_token skipping %s", article_token)
+        logging.info("Skipped article {0}".format(article_token))
+        import ipdb; ipdb.set_trace()
         return False
 
     # get PDF first
@@ -711,6 +713,8 @@ class ADSConnector(object):
             if self.url_parts.netloc in self.prefs.adsmirrors \
                     and self._is_ads_page():
                 logging.debug("ADSConnector found ADS page %s", self.token)
+            else:
+                logging.debug("ADSConnector found nothing for %s", self.token)
 
     def _is_arxiv(self):
         """Try to classify the token as an arxiv article, either:
@@ -771,7 +775,7 @@ class ADSConnector(object):
                 r'<head>[\s\S]*</head>', '',
                 urllib2.urlopen(ads_url).read())
             return True
-        except urllib2.HTTPError:
+        except (urllib2.HTTPError, socket.timeout):
             return False
 
 
@@ -782,10 +786,11 @@ class Preferences(object):
 
     def __init__(self):
         self.prefs_path = os.path.expanduser('~/.adsbibdesk')
-        self._adsmirrors = ['adsabs.harvard.edu',
+        self._adsmirrors = [
+                            'esoads.eso.org',
+                            'adsabs.harvard.edu',
                             'cdsads.u-strasbg.fr',
                             'ukads.nottingham.ac.uk',
-                            'esoads.eso.org',
                             'ads.ari.uni-heidelberg.de',
                             'ads.inasan.ru',
                             'ads.mao.kiev.ua',
