@@ -41,6 +41,11 @@ import sys
 import tempfile
 import time
 
+try:
+    from string import uppercase
+except ImportError:
+    from string import ascii_uppercase as uppercase
+
 # cgi.parse_qs is deprecated since 2.6
 # but OS X 10.5 only has 2.5
 import cgi
@@ -66,7 +71,7 @@ except ImportError:
         import webbrowser
         url = 'http://pythonhosted.org/pyobjc/install.html'
         msg = 'Please install PyObjC...'
-        print msg
+        print(msg)
         sp.call(r'osascript -e "tell application \"System Events\" to '
                 'display dialog \"%s\" buttons {\"OK\"} default button \"OK\""'
                 % msg, shell=True, stdout=open('/dev/null', 'w'))
@@ -74,8 +79,14 @@ except ImportError:
         webbrowser.open(url)
         sys.exit()
 
-from HTMLParser import HTMLParser, HTMLParseError
+from HTMLParser import HTMLParser
 from htmlentitydefs import name2codepoint
+
+try:
+    from html.parser import HTMLParseError
+except ImportError:  # Python 3.5+
+    class HTMLParseError(Exception):
+        pass
 
 # default timeout for url calls
 socket.setdefaulttimeout(30)
@@ -207,7 +218,7 @@ def process_articles(args, prefs, delay=15):
     for article_token in article_tokens:
         try:
             process_token(article_token, prefs, bibdesk)
-        except ADSException, err:
+        except ADSException as err:
             logging.debug('%s failed - %s' % (article_token, err))
         if len(article_tokens) > 1 and article_token != article_tokens[-1]:
             time.sleep(delay)
@@ -410,7 +421,7 @@ def ingest_pdfs(options, args, prefs):
     assert len(args) == 1, "Please pass a path to a directory"
     pdf_dir = args[0]
     assert os.path.exists(pdf_dir) is True, "%s does not exist" % pdf_dir
-    print "Searching", pdf_dir
+    print("Searching", pdf_dir)
 
     if options.recursive:
         # Recursive glob solution from
@@ -501,7 +512,7 @@ def update_arxiv(options, prefs):
     bibdesk.app.dealloc()
 
     if not ids:
-        print 'Nothing to update!'
+        print('Nothing to update!')
         sys.exit()
     else:
         n = len(ids)
@@ -529,7 +540,7 @@ def update_arxiv(options, prefs):
         ads_parser = ADSHTMLParser(prefs=prefs)
         try:
             ads_parser.parse_at_url(adsURL)
-        except ADSException, err:
+        except ADSException as err:
             logging.debug('%s update failed: %s' % (i, err))
             continue
         logging.debug("ads.bibtex %s" % ads_parser.bibtex)
@@ -621,7 +632,7 @@ def get_redirect(url):
     """Utility function to intercept final URL of HTTP redirection"""
     try:
         out = urllib2.urlopen(url)
-    except urllib2.URLError, out:
+    except urllib2.URLError as out:
         pass
     return out.geturl()
 
@@ -690,7 +701,7 @@ class ADSConnector(object):
                     logging.debug(
                         "arXiv page (%s) parsed for %s"
                         % (arxiv_bib.url, self.token))
-                except ArXivException, err:
+                except ArXivException as err:
                     logging.debug("ADS and arXiv failed, you're in trouble...")
                     raise ADSException(err)
 
@@ -868,8 +879,8 @@ class Preferences(object):
         """
         Set a default preferences file (~/.adsbibdesk)
         """
-        prefs = open(self.prefs_path, 'w')
-        print >> prefs, """# ADS mirror
+        with open(self.prefs_path, 'w') as prefs:
+            prefs.write("""# ADS mirror
 ads_mirror=%s
 
 # arXiv mirror
@@ -884,9 +895,7 @@ download_pdf=%s
 ssh_user=%s
 ssh_server=%s""" % (self.prefs['ads_mirror'], self.prefs['arxiv_mirror'],
                     self.prefs['download_pdf'], self.prefs['ssh_user'],
-                    self.prefs['ssh_server'])
-
-        prefs.close()
+                    self.prefs['ssh_server']))
 
     @property
     def adsmirrors(self):
@@ -1056,7 +1065,7 @@ class ADSHTMLParser(HTMLParser):
         """Helper method to read data from URL, and passes on to parse()."""
         try:
             html_data = urllib2.urlopen(url).read()
-        except urllib2.URLError, err:
+        except urllib2.URLError as err:
             logging.debug("ADSHTMLParser timed out on URL: %s", url)
             raise ADSException(err)
         self.parse(html_data)
@@ -1077,9 +1086,10 @@ class ADSHTMLParser(HTMLParser):
             self.title = re.search(
                 '(?<={).+(?=})',
                 self.bibtex.info['title']).group()\
-                .replace('{', '').replace('}', '').encode('utf-8')
+                .replace('{', '').replace('}', '')#.encode('utf-8')
             self.author = [
-                a.strip().encode('utf-8') for a in
+                a.strip()#.encode('utf-8')
+                for a in
                 re.search('(?<={).+(?=})', self.bibtex.info['author'])
                 .group().split(' and ')]
             # bibtex do not have the comment from ADS
@@ -1157,7 +1167,7 @@ class ADSHTMLParser(HTMLParser):
         if self.get_abs:
             if name in name2codepoint:
                 c = name2codepoint[name]
-                self.tag += unichr(c).encode('utf-8')
+                self.tag += unichr(c)#.encode('utf-8')
             else:
                 # fetch mathml
                 if not self.entities:
@@ -1165,7 +1175,7 @@ class ADSHTMLParser(HTMLParser):
                     self.entities = self.mathml()
                 if name in self.entities:
                     c = self.entities[name]
-                    self.tag += unichr(c).encode('utf-8')
+                    self.tag += unichr(c)#.encode('utf-8')
                 else:
                     # nothing worked, leave it as-is
                     self.tag += '&' + name + ';'
@@ -1173,7 +1183,7 @@ class ADSHTMLParser(HTMLParser):
     # handle unicode chars in utf-8
     def handle_charref(self, name):
         if self.get_abs:
-            self.tag += unichr(int(name)).encode('utf-8')
+            self.tag += unichr(int(name))#.encode('utf-8')
 
     def get_pdf(self):
         """
@@ -1190,9 +1200,13 @@ class ADSHTMLParser(HTMLParser):
             return 'not downloaded'
 
         def filetype(filename):
-            return sp.Popen('file %s' % filename, shell=True,
+            x = sp.Popen('file %s' % filename, shell=True,
                             stdout=sp.PIPE,
                             stderr=sp.PIPE).stdout.read()
+            try:
+                return x.decode()
+            except:
+                return x
 
         # refereed
         if 'article' in self.links:
@@ -1225,7 +1239,7 @@ class ADSHTMLParser(HTMLParser):
             # test for HTTP auth need
             try:
                 os.fdopen(fd, 'wb').write(urllib2.urlopen(pdf_url).read())
-            except urllib2.URLError, err:  # HTTPError derives from URLError
+            except urllib2.URLError as err:  # HTTPError derives from URLError
                 logging.debug('%s failed: %s' % (pdf_url, err))
                 # dummy file
                 open(pdf, 'w').write('dummy')
@@ -1305,6 +1319,7 @@ class ADSHTMLParser(HTMLParser):
             fd, pdf = tempfile.mkstemp(suffix='.pdf')
             os.fdopen(fd, 'wb').write(urllib2.urlopen(
                 url.replace('abs', 'pdf')).read())
+            print(filetype(pdf), type(filetype(pdf)))
             if 'PDF document' in filetype(pdf):
                 return pdf
             # PDF was not yet generated in the mirror?
@@ -1350,7 +1365,7 @@ class ArXivParser(object):
         self.url = 'http://export.arxiv.org/api/query?id_list=' + arxiv_id
         try:
             self.xml = ElementTree.fromstring(urllib2.urlopen(self.url).read())
-        except (urllib2.HTTPError, urllib2.URLError), err:
+        except (urllib2.HTTPError, urllib2.URLError) as err:
             logging.debug("ArXivParser failed on URL: %s", self.url)
             raise ArXivException(err)
         self.info = self.parse(self.xml)
@@ -1385,11 +1400,11 @@ class ArXivParser(object):
             ['{%s}, %s' % (a['name'].split()[-1],
                            '~'.join(a['name'].split()[:-1]))
              for a in info['author']
-             if len(a['name'].strip()) > 1]).encode('utf-8')
-        self.Title = info['title'].encode('utf-8')
-        self.Abstract = info['summary'].encode('utf-8')
-        self.AdsComment = info['comment'].replace('"', "'").encode('utf-8') \
-            if 'comment' in info else ""
+             if len(a['name'].strip()) > 1])#.encode('utf-8')
+        self.Title = info['title']#.encode('utf-8')
+        self.Abstract = info['summary']#.encode('utf-8')
+        self.AdsComment = (info['comment'].replace('"', "'")#.encode('utf-8') \
+                           if 'comment' in info else "")
         self.Jornal = 'ArXiv e-prints'
         self.ArchivePrefix = 'arXiv'
         self.ArXivURL = info['id']
@@ -1405,9 +1420,9 @@ class ArXivParser(object):
             '\n'.join([
                 '%s = {%s},' % (k, v)
                 for k, v in
-                sorted([(k, v.decode('utf-8'))
+                sorted([(k, v.decode('utf-8') if hasattr(v, 'decode') else v)
                         for k, v in self.__dict__.iteritems()
-                        if k[0] in string.uppercase])]) +\
+                        if k[0] in uppercase])]) +\
             '}'
 
 
@@ -1443,10 +1458,10 @@ class MNRASParser(HTMLParser):
                 logging.debug("No detected MNRAS encoding")
                 page = connection.read()
                 self.feed(page)
-        except urllib2.URLError, err:  # HTTP timeout
+        except urllib2.URLError as err:  # HTTP timeout
             logging.debug("MNRASParser timed out: %s", url)
             raise MNRASException(err)
-        except HTMLParseError, err:
+        except HTMLParseError as err:
             raise MNRASException(err)
 
     def handle_starttag(self, tag, attrs):
