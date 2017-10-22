@@ -217,6 +217,7 @@ def process_articles(args, prefs, delay=15):
     bibdesk = BibDesk()
 
     for article_token in article_tokens:
+        print("Processing article {0}".format(article_token))
         try:
             process_token(article_token, prefs, bibdesk)
         except ADSException as err:
