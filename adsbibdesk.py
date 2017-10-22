@@ -782,9 +782,14 @@ class ADSConnector(object):
         """
         try:
             # remove <head>...</head> - often broken HTML
+            htmldata = urllib2.urlopen(ads_url).read()
+            try:
+                htmldata = htmldata.decode('utf-8')
+            except AttributeError:
+                pass
             self.ads_read = re.sub(
                 r'<head>[\s\S]*</head>', '',
-                urllib2.urlopen(ads_url).read())
+                htmldata)
             return True
         except (urllib2.HTTPError, socket.timeout):
             return False
@@ -908,7 +913,9 @@ class BibTex(object):
         """
         Create BibTex instance from ADS BibTex URL
         """
-        bibtex = urllib2.urlopen(url).readlines()
+        bibtex_obj = urllib2.urlopen(url)
+        charset = bibtex_obj.headers.get_content_charset()
+        bibtex = [x.decode(charset) for x in bibtex_obj.readlines()]
         bibtex = ' '.join([l.strip() for l in bibtex]).strip()
         bibtex = bibtex[re.search('@[A-Z]+\{', bibtex).start():]
         self.type, self.bibcode, self.info = self.parsebib(bibtex)
@@ -916,8 +923,7 @@ class BibTex(object):
     def __str__(self):
         return (','.join(
             ['@' + self.type + '{' + self.bibcode] +
-            ['%s=%s' % (i, j) for i, j in self.info.items()]) + '}').\
-            encode('utf-8')
+            ['%s=%s' % (i, j) for i, j in self.info.items()]) + '}')
 
     def parsebib(self, bibtex):
         """
@@ -1116,7 +1122,10 @@ class ADSHTMLParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag.lower() == 'hr' and self.get_abs:
             # abstract
-            self.abstract = self.tag.strip().decode('utf-8')
+            try:
+                self.abstract = self.tag.strip().decode('utf-8')
+            except AttributeError:
+                self.abstract = self.tag.strip()
             self.get_abs = False
             self.tag = ''
         elif tag.lower() == 'img' and self.get_abs:
