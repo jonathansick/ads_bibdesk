@@ -40,6 +40,7 @@ import socket
 import sys
 import tempfile
 import time
+import requests
 
 try:
     from string import uppercase
@@ -49,7 +50,7 @@ except ImportError:
 # cgi.parse_qs is deprecated since 2.6
 # but OS X 10.5 only has 2.5
 import cgi
-import urllib2
+#import urllib2
 import urlparse
 
 import subprocess as sp
@@ -630,11 +631,13 @@ def has_annotationss(f):
 
 def get_redirect(url):
     """Utility function to intercept final URL of HTTP redirection"""
-    try:
-        out = urllib2.urlopen(url)
-    except urllib2.URLError as out:
-        pass
-    return out.geturl()
+    response = requests.get(url)
+    return response.url
+    #try:
+    #    out = urllib2.urlopen(url)
+    #except urllib2.URLError as out:
+    #    pass
+    #return out.geturl()
 
 
 class PDFDOIGrabber(object):
@@ -782,16 +785,20 @@ class ADSConnector(object):
         """
         try:
             # remove <head>...</head> - often broken HTML
-            htmldata = urllib2.urlopen(ads_url).read()
-            try:
-                htmldata = htmldata.decode('utf-8')
-            except AttributeError:
-                pass
+            response = requests.get(ads_url)
+            response.raise_for_status()
+            htmldata = response.text
+            #htmldata = urllib2.urlopen(ads_url).read()
+            #try:
+            #    htmldata = htmldata.decode('utf-8')
+            #except AttributeError:
+            #    pass
             self.ads_read = re.sub(
                 r'<head>[\s\S]*</head>', '',
                 htmldata)
             return True
-        except (urllib2.HTTPError, socket.timeout):
+        except Exception as ex:
+            print("Exception is: {0}".format(ex))
             return False
 
 
@@ -913,9 +920,11 @@ class BibTex(object):
         """
         Create BibTex instance from ADS BibTex URL
         """
-        bibtex_obj = urllib2.urlopen(url)
-        charset = bibtex_obj.headers.get_content_charset()
-        bibtex = [x.decode(charset) for x in bibtex_obj.readlines()]
+        bibresponse = requests.get(url)
+        bibtex = bibresponse.text.split("\n")
+        #bibtex_obj = urllib2.urlopen(url)
+        #charset = bibtex_obj.headers.get_content_charset()
+        #bibtex = [x.decode(charset) for x in bibtex_obj.readlines()]
         bibtex = ' '.join([l.strip() for l in bibtex]).strip()
         bibtex = bibtex[re.search('@[A-Z]+\{', bibtex).start():]
         self.type, self.bibcode, self.info = self.parsebib(bibtex)
@@ -1056,8 +1065,10 @@ class ADSHTMLParser(HTMLParser):
         http://www.w3.org/Math/characters/byalpha.html
         """
         w3 = 'http://www.w3.org/Math/characters/byalpha.html'
+        mathml_page = requests.get(url)
+        mathml_text = mathml_page.text
         mathml = re.search('(?<=<pre>).+(?=</pre>)',
-                           urllib2.urlopen(w3).read(), re.DOTALL).group()
+                           mathml_text, re.DOTALL).group()
         entities = {}
         for l in mathml[:-1].splitlines():
             s = l.split(',')
@@ -1070,10 +1081,13 @@ class ADSHTMLParser(HTMLParser):
     def parse_at_url(self, url):
         """Helper method to read data from URL, and passes on to parse()."""
         try:
-            html_data = urllib2.urlopen(url).read()
-        except urllib2.URLError as err:
+            response = requests.get(url)
+            html_data = response.text
+            #html_data = urllib2.urlopen(url).read()
+        except Exception as ex:
+            print("Exception is: {0}".format(ex))
             logging.debug("ADSHTMLParser timed out on URL: %s", url)
-            raise ADSException(err)
+            raise ADSException(ex)
         self.parse(html_data)
 
     def parse(self, html_data):
@@ -1247,8 +1261,10 @@ class ADSHTMLParser(HTMLParser):
             fd, pdf = tempfile.mkstemp(suffix='.pdf')
             # test for HTTP auth need
             try:
-                os.fdopen(fd, 'wb').write(urllib2.urlopen(pdf_url).read())
-            except urllib2.URLError as err:  # HTTPError derives from URLError
+                response = requests.get(pdf_url)
+                pdf_bytes = response.content
+                os.fdopen(fd, 'wb').write(pdf_bytes)
+            except Exception as err:
                 logging.debug('%s failed: %s' % (pdf_url, err))
                 # dummy file
                 open(pdf, 'w').write('dummy')
@@ -1295,7 +1311,9 @@ class ADSHTMLParser(HTMLParser):
             else:
                 # search for PDF link in the arXiv page
                 # this should be *deprecated*
-                for line in urllib2.urlopen(url):
+                response = requests.get(url)
+                lines = response.text.split("\n")
+                for line in lines:
                     if '<h1><a href="/">' in line:
                         mirror = re.search(
                             '<h1><a href="/">(.*ar[xX]iv.org)',
@@ -1326,8 +1344,8 @@ class ADSHTMLParser(HTMLParser):
 
             # get arXiv PDF
             fd, pdf = tempfile.mkstemp(suffix='.pdf')
-            os.fdopen(fd, 'wb').write(urllib2.urlopen(
-                url.replace('abs', 'pdf')).read())
+            response = requests.get(url.replace('abs', 'pdf'))
+            os.fdopen(fd, 'wb').write(response.content)
             print(filetype(pdf), type(filetype(pdf)))
             if 'PDF document' in filetype(pdf):
                 return pdf
@@ -1338,8 +1356,8 @@ class ADSHTMLParser(HTMLParser):
                     notify('Waiting for arXiv...', '',
                            'PDF is being generated, retrying in 30s...')
                     time.sleep(30)
-                    open(pdf, 'wb').write(urllib2.urlopen(
-                        url.replace('abs', 'pdf')).read())
+                    response = requests.get(url.replace('abs', 'pdf'))
+                    open(pdf, 'wb').write(response.content)
                 if 'PDF document' in filetype(pdf):
                     return pdf
                 else:
@@ -1373,8 +1391,9 @@ class ArXivParser(object):
         from xml.etree import ElementTree
         self.url = 'http://export.arxiv.org/api/query?id_list=' + arxiv_id
         try:
-            self.xml = ElementTree.fromstring(urllib2.urlopen(self.url).read())
-        except (urllib2.HTTPError, urllib2.URLError) as err:
+            response = requests.get(self.url)
+            self.xml = ElementTree.fromstring(response.text)
+        except Exception as err:
             logging.debug("ArXivParser failed on URL: %s", self.url)
             raise ArXivException(err)
         self.info = self.parse(self.xml)
@@ -1457,17 +1476,19 @@ class MNRASParser(HTMLParser):
         try:
             # Detect and decode page's charset
             logging.debug("Parsing MNRAS url %s" % url)
-            connection = urllib2.urlopen(url)
-            encoding = connection.headers.getparam('charset')
-            if encoding is not None:
-                logging.debug("Detected MNRAS encoding %s" % encoding)
-                page = connection.read().decode(encoding)
-                self.feed(page)
-            else:
-                logging.debug("No detected MNRAS encoding")
-                page = connection.read()
-                self.feed(page)
-        except urllib2.URLError as err:  # HTTP timeout
+            response = requests.get(url)
+            self.feed(response.text)
+            #connection = urllib2.urlopen(url)
+            #encoding = connection.headers.getparam('charset')
+            #if encoding is not None:
+            #    logging.debug("Detected MNRAS encoding %s" % encoding)
+            #    page = connection.read().decode(encoding)
+            #    self.feed(page)
+            #else:
+            #    logging.debug("No detected MNRAS encoding")
+            #    page = connection.read()
+            #    self.feed(page)
+        except Exception as err:
             logging.debug("MNRASParser timed out: %s", url)
             raise MNRASException(err)
         except HTMLParseError as err:
