@@ -51,7 +51,10 @@ except ImportError:
 # but OS X 10.5 only has 2.5
 import cgi
 #import urllib2
-import urlparse
+try:
+    from urlparse import urlparse, urlsplit, urlunsplit
+except ImportError:
+    from urllib.parse import urlparse, urlsplit, urlunsplit
 
 import subprocess as sp
 try:
@@ -80,14 +83,16 @@ except ImportError:
         webbrowser.open(url)
         sys.exit()
 
-from HTMLParser import HTMLParser
 from htmlentitydefs import name2codepoint
 
 try:
-    from html.parser import HTMLParseError
-except ImportError:  # Python 3.5+
-    class HTMLParseError(Exception):
-        pass
+    from HTMLParser import HTMLParser
+except ImportError:
+    try:
+        from html.parser import HTMLParseError
+    except ImportError:  # Python 3.5+
+        class HTMLParseError(Exception):
+            pass
 
 # default timeout for url calls
 socket.setdefaulttimeout(30)
@@ -263,8 +268,8 @@ def process_token(article_token, prefs, bibdesk):
         ads_parser.bibtex.AdsURL = connector.ads_url
         # inject arXiv mirror into ArXivURL
         if 'arxiv_mirror' in prefs and prefs['arxiv_mirror']:
-            tmpurl = urlparse.urlsplit(ads_parser.bibtex.ArXivURL)
-            ads_parser.bibtex.ArXivURL = urlparse.urlunsplit(
+            tmpurl = urlsplit(ads_parser.bibtex.ArXivURL)
+            ads_parser.bibtex.ArXivURL = urlunsplit(
                 (tmpurl.scheme,
                  prefs['arxiv_mirror'],
                  tmpurl.path, tmpurl.query,
@@ -534,7 +539,7 @@ def update_arxiv(options, prefs):
         time.sleep(15)
         logging.debug("arxiv id %s" % i)
         # these are ADS bibcodes by default
-        adsURL = urlparse.urlunsplit(
+        adsURL = urlunsplit(
             ('http', prefs['ads_mirror'],
              'cgi-bin/bib_query', i, ''))
         logging.debug("adsURL %s" % adsURL)
@@ -687,7 +692,7 @@ class ADSConnector(object):
         self.prefs = prefs
         self.ads_url = None  # string URL to ADS
         self.ads_read = None  # a urllib2.urlopen connection to ADS
-        self.url_parts = urlparse.urlsplit(token)  # supposing it is a URL
+        self.url_parts = urlsplit(token)  # supposing it is a URL
 
         # An arXiv identifier or URL?
         if self._is_arxiv():
@@ -722,7 +727,7 @@ class ADSConnector(object):
             if not self.token.startswith("http://"):
                 self.token = 'http://' + self.token
             # supposing it is a URL
-            self.url_parts = urlparse.urlsplit(self.token)
+            self.url_parts = urlsplit(self.token)
 
             # An abstract page at any ADS mirror site?
             if self.url_parts.netloc in self.prefs.adsmirrors \
@@ -743,7 +748,7 @@ class ADSConnector(object):
         arxiv_matches = arxiv_pattern.findall(self.token)
         if len(arxiv_matches) == 1:
             self.arxiv_id = arxiv_matches[0]
-            self.ads_url = urlparse.urlunsplit((
+            self.ads_url = urlunsplit((
                 'http',
                 self.prefs['ads_mirror'],
                 'cgi-bin/bib_query',
@@ -755,14 +760,14 @@ class ADSConnector(object):
 
     def _is_bibcode(self):
         """Test if the token corresponds to an ADS bibcode or DOI"""
-        self.ads_url = urlparse.urlunsplit((
+        self.ads_url = urlunsplit((
             'http', self.prefs['ads_mirror'],
             'doi/%s' % self.token, '', ''))
         read = self._read(self.ads_url)
         if read:
             return read
         else:
-            self.ads_url = urlparse.urlunsplit((
+            self.ads_url = urlunsplit((
                 'http',
                 self.prefs['ads_mirror'], 'abs/%s' % self.token, '', ''))
             read = self._read(self.ads_url)
@@ -772,7 +777,7 @@ class ADSConnector(object):
         """Test if the token is a url to an ADS abstract page"""
         # use our ADS mirror
         url = self.url_parts
-        self.ads_url = urlparse.urlunsplit((
+        self.ads_url = urlunsplit((
             url.scheme,
             self.prefs['ads_mirror'],
             url.path, url.query, url.fragment))
@@ -1123,13 +1128,13 @@ class ADSHTMLParser(HTMLParser):
                         or not self.prefs['arxiv_mirror']:
                     # test HTTP redirect to get the arXiv mirror used by ADS
                     try:
-                        mirror = urlparse.urlsplit(
+                        mirror = urlsplit(
                             get_redirect(self.links['preprint'])).netloc
                     except KeyError:
                         mirror = 'arxiv.org'  # this should not happen
                 else:
                     mirror = self.prefs['arxiv_mirror']
-                url = urlparse.urlunsplit((
+                url = urlunsplit((
                     'http', mirror,
                     'abs/' + self.arxivid, None, None))
                 self.bibtex.info.update({'arxivurl': '"' + url + '"'})
@@ -1150,7 +1155,7 @@ class ADSHTMLParser(HTMLParser):
             # links
             if 'href' in dict(attrs):
                 href = dict(attrs)['href'].replace('&#38;', unichr(38))
-                query = cgi.parse_qs(urlparse.urlsplit(href).query)
+                query = cgi.parse_qs(urlsplit(href).query)
                 if 'bibcode' in query:
                     if 'link_type' in query:
                         self.links[query['link_type'][0].lower()] = href
@@ -1302,10 +1307,10 @@ class ADSHTMLParser(HTMLParser):
                 if 'arxiv_mirror' not in self.prefs \
                         or not self.prefs['arxiv_mirror']:
                     # test HTTP redirect to get the arXiv mirror used by ADS
-                    mirror = urlparse.urlsplit(get_redirect(url)).netloc
+                    mirror = urlsplit(get_redirect(url)).netloc
                 else:
                     mirror = self.prefs['arxiv_mirror']
-                url = urlparse.urlunsplit((
+                url = urlunsplit((
                     'http', mirror, 'pdf/' + self.arxivid, None, None))
                 logging.debug('arXiv PDF (%s)' % url)
 
@@ -1321,20 +1326,20 @@ class ADSHTMLParser(HTMLParser):
                             line)
                     elif 'dc:identifier' in line:
                         begin = re.search('dc:identifier="', line).end()
-                        url = urlparse.urlsplit(
+                        url = urlsplit(
                             line[begin:-2].replace('&#38;', unichr(38)).
                             lower())
                         # use automatic mirror chosen by the ADS mirror
                         if ('arxiv_mirror' not in self.prefs
                                 or not self.prefs['arxiv_mirror']) \
                                 and mirror is not None:
-                            url = urlparse.urlunsplit((
+                            url = urlunsplit((
                                 url.scheme,
                                 mirror.group(1), url.path, url.query,
                                 url.fragment))
                             break
                         elif self.prefs['arxiv_mirror']:
-                            url = urlparse.urlunsplit((
+                            url = urlunsplit((
                                 url.scheme,
                                 self.prefs['arxiv_mirror'],
                                 url.path, url.query,
