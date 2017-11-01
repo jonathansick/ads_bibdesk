@@ -637,7 +637,14 @@ def has_annotationss(f):
 
 def get_redirect(url):
     """Utility function to intercept final URL of HTTP redirection"""
-    response = requests.get(url)
+    if 'MNRAS' in url:
+        # MNRAS rejects requests from "non-browsers"
+        response = requests.get(url,
+                                headers={'User-Agent':
+                                         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'})
+    else:
+        response = requests.get(url)
+    response.raise_for_status()
     return response.url
     #try:
     #    out = urllib2.urlopen(url)
