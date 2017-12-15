@@ -1175,7 +1175,11 @@ class ADSHTMLParser(HTMLParser):
 
     def handle_endtag(self, tag):
         if self.get_comment and tag.lower() == 'td':
-            self.comment = self.tag.strip().decode('utf-8')
+            striptag = self.tag.strip()
+            if hasattr(striptag, 'decode'):
+                self.comment = striptag.decode('utf-8')
+            else:
+                self.comment = striptag
             self.get_comment = None
             self.tag = ''
 
