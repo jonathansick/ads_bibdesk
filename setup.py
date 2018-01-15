@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 def read(fname):
-    return open(rel_path(fname)).read()
+    with open(rel_path(fname), 'r') as fh:
+        return fh.read()
 
 
 def rel_path(path):
@@ -66,23 +67,25 @@ class BuildService(Command):
         py_path = rel_path("adsbibdesk.py")
 
         for workflow in (service_path, app_path):
-            xml = ElementTree.fromstring(open(workflow).read())
+            with open(workflow, 'r') as fh:
+                xml = ElementTree.fromstring(fh.read())
             for arr in xml.find('dict').find('array').getchildren():
 
                 # fetch Python code inside the xml
                 py = [c for c in arr.find('dict').getchildren()
-                    if c.tag == 'dict' and
-                    any([i.text and '/usr/bin/env' in i.text
-                        for i in c.getchildren()])]
+                      if c.tag == 'dict' and
+                      any([i.text and '/usr/bin/env' in i.text
+                           for i in c.getchildren()])]
 
                 # rewrite with current file
                 if py:
                     logger.info("Inserting {0} into {1}".format(py_path,
-                        workflow))
+                                                                workflow))
                     py[0].find('string').text = open(py_path).read()
 
             logger.info("Saving {0}".format(workflow))
-            open(workflow, 'w').write(ElementTree.tostring(xml))
+            with open(workflow, 'wb') as fh:
+                fh.write(ElementTree.tostring(xml))
         logger.info("Completed ADS to BibDesk build step")
 
 
