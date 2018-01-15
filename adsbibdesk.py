@@ -42,6 +42,7 @@ import tempfile
 import time
 import requests
 
+
 try:
     from string import uppercase
 except ImportError:
@@ -1234,15 +1235,16 @@ class ADSHTMLParser(HTMLParser):
         - arXiv preprint
         - electronic journal link
         """
+        logging.debug("Getting PDF")
         if not self.links:
             return 'failed'
         elif 'download_pdf' in self.prefs and not self.prefs['download_pdf']:
             return 'not downloaded'
 
         def filetype(filename):
-            x = sp.Popen('file %s' % filename, shell=True,
-                            stdout=sp.PIPE,
-                            stderr=sp.PIPE).stdout.read()
+            x = sp.Popen('file "%s"' % filename, shell=True,
+                         stdout=sp.PIPE,
+                         stderr=sp.PIPE).stdout.read()
             try:
                 return x.decode()
             except:
@@ -1312,6 +1314,8 @@ class ADSHTMLParser(HTMLParser):
             url = self.links['preprint']
             mirror = None
 
+            logging.debug("Retrieving file from arxiv (it is a preprint)")
+
             # fetch PDF directly without parsing the arXiv page
             if self.arxivid is not None:
                 # user defined mirror?
@@ -1363,12 +1367,13 @@ class ADSHTMLParser(HTMLParser):
             fd, pdf = tempfile.mkstemp(suffix='.pdf')
             response = requests.get(url.replace('abs', 'pdf'))
             os.fdopen(fd, 'wb').write(response.content)
-            print(filetype(pdf), type(filetype(pdf)))
+            response = requests.get(url.replace('abs', 'pdf'))
+            logging.debug("PDF file is: {0}".format(filetype(pdf)))
             if 'PDF document' in filetype(pdf):
                 return pdf
             # PDF was not yet generated in the mirror?
-            elif '...processing...' in open(pdf).read():
-                while '...processing...' in open(pdf).read():
+            elif b'...processing...' in open(pdf, 'rb').read():
+                while b'...processing...' in open(pdf, 'rb').read():
                     logging.debug('waiting 30s for PDF regeneration')
                     notify('Waiting for arXiv...', '',
                            'PDF is being generated, retrying in 30s...')
