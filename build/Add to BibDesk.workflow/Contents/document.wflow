@@ -60,7 +60,7 @@
 					<string>#!/usr/bin/env python
 """
 ADS to BibDesk -- frictionless import of ADS publications into BibDesk
-Copyright (C) 2012  Rui Pereira &lt;rui.pereira@gmail.com&gt; and
+Copyright (C) 2014  Rui Pereira &lt;rui.pereira@gmail.com&gt; and
                     Jonathan Sick &lt;jonathansick@mac.com&gt;
 
 This program is free software: you can redistribute it and/or modify
@@ -85,185 +85,668 @@ Input may be one of the following:
 - arXiv abstract page
 - arXiv identifier
 """
-import sys
-import os
+import datetime
+import difflib
 import fnmatch
 import glob
-import re
-import time
+import logging
+import math
 import optparse
-import tempfile
+import os
+import pprint
+import re
 import socket
-import binascii
-import zlib
-import subprocess
+import sys
+import tempfile
+import time
+import requests
 
+try:
+    from string import uppercase
+except ImportError:
+    from string import ascii_uppercase as uppercase
+
+# cgi.parse_qs is deprecated since 2.6
+# but OS X 10.5 only has 2.5
 import cgi
-import urllib2
-import urlparse
+#import urllib2
+try:
+    from urlparse import urlparse, urlsplit, urlunsplit
+except ImportError:
+    from urllib.parse import urlparse, urlsplit, urlunsplit
 
 import subprocess as sp
-from HTMLParser import HTMLParser, HTMLParseError
+try:
+    import AppKit
+except ImportError:
+    # is this not the system python?
+    syspath = eval(sp.Popen('/usr/bin/python -c "import sys; print(sys.path)"',
+                            shell=True, stdout=sp.PIPE).stdout.read())
+    for p in syspath:
+        if os.path.isdir(p) and glob.glob(os.path.join(p, '*AppKit*')):
+            sys.path.insert(0, p)
+            break
+
+    # retry
+    try:
+        import AppKit
+    except ImportError:
+        import webbrowser
+        url = 'http://pythonhosted.org/pyobjc/install.html'
+        msg = 'Please install PyObjC...'
+        print(msg)
+        sp.call(r'osascript -e "tell application \"System Events\" to '
+                'display dialog \"%s\" buttons {\"OK\"} default button \"OK\""'
+                % msg, shell=True, stdout=open('/dev/null', 'w'))
+        # open browser in PyObjC install page
+        webbrowser.open(url)
+        sys.exit()
+
 from htmlentitydefs import name2codepoint
+
+try:
+    from HTMLParser import HTMLParser
+except ImportError:
+    try:
+        from html.parser import HTMLParseError
+    except ImportError:  # Python 3.5+
+        class HTMLParseError(Exception):
+            pass
 
 # default timeout for url calls
 socket.setdefaulttimeout(30)
 
+VERSION = "3.2.0"
+
 
 def main():
     """Parse options and launch main loop"""
-    usage = "Usage: %prog [options] [article_token or pdf_directory]"
-    version = "3.0.2"
-    description = """adsbibdesk helps you add astrophysics articles listed
-on NASA/ADS and arXiv.org to your BibDesk database. There are two modes
+    usage = """Usage: %prog [options] [article_token or pdf_directory]
+
+adsbibdesk helps you add astrophysics articles listed on NASA/ADS
+and arXiv.org to your BibDesk database. There are three modes
 in this command line interface:
 
 1. Article mode, for adding single papers to BibDesk given tokens.
 2. PDF Ingest mode, where PDFs in a directory are analyzed and added to
    BibDesk with ADS meta data.
+3. Pre-print Update mode, for updating arXiv pre-prints automatically
+   with newer bibcodes.
+
 In article mode, adsbibdesk accepts many kinds of article tokens:
-The URL of an ADS or arXiv article page,
-The ADS bibcode of an article (e.g. 1998ApJ...500..525S), or
-the arXiv identifier of an article (e.g. 0911.4956).
+ - the URL of an ADS or arXiv article page,
+ - the ADS bibcode of an article (e.g. 1998ApJ...500..525S), or
+ - the arXiv identifier of an article (e.g. 0911.4956).
 (Example: `adsbibdesk 1998ApJ...500..525S`)
+
 In PDF Ingest mode, you specify a directory containing PDFs instead of
 an article token (Example: `adsbibdesk -p pdfs` will ingest PDFs from
 the pdfs/ directory).
-"""
+
+In Pre-print Update mode, every article with an arXiv bibcode will be
+updated if it has a new bibcode."""
     epilog = "For more information, visit www.jonathansick.ca/adsbibdesk" \
-             + " email jonathansick at mac.com or tweet @jonathansick"
-    parser = optparse.OptionParser(usage=usage, version=version,
-            description=description, epilog=epilog)
-    parser.add_option('-d', '--debug',
-            dest="debug", default=False, action="store_true",
-            help="Debug mode; prints extra statements")
-    pdfIngestGroup = optparse.OptionGroup(parser, "PDF Ingest Mode",
-            description=None)
-    pdfIngestGroup.add_option('-p', '--ingest_pdfs',
-            dest="ingestPdfs", default=False, action="store_true",
-            help="Ingest a folder of PDFs."
-                 " Positional argument should be directory"
-                 " containing PDFs."
-                 " e.g., `adsbibdesk -p .` for the current directory")
-    pdfIngestGroup.add_option('-r', '--recursive',
-            dest='recursive', default=True, action="store_false",
-            help="Search for PDFs recursively in the directory tree.")
-    parser.add_option_group(pdfIngestGroup)
+        " email jonathansick at mac.com or tweet @jonathansick"
+    parser = optparse.OptionParser(usage=usage, version=VERSION,
+                                   epilog=epilog)
+    parser.add_option(
+        '-d', '--debug',
+        dest="debug", default=False, action="store_true",
+        help="Debug mode; prints extra statements")
+    parser.add_option(
+        '-o', '--only_pdf',
+        default=False, action='store_true',
+        help="Download and open PDF for the selected [article_token].")
+
+    pdf_ingest_group = optparse.OptionGroup(parser, "PDF Ingest Mode",
+                                            description=None)
+    pdf_ingest_group.add_option(
+        '-p', '--ingest_pdfs',
+        dest="ingest_pdfs", default=False, action="store_true",
+        help="Ingest a folder of PDFs."
+             " Positional argument should be directory"
+             " containing PDFs."
+             " e.g., `adsbibdesk -p .` for the current directory")
+    pdf_ingest_group.add_option(
+        '-r', '--recursive',
+        dest='recursive', action="store_true",
+        help="Search for PDFs recursively in the directory tree.")
+    parser.add_option_group(pdf_ingest_group)
+
+    arxiv_update_group = optparse.OptionGroup(parser, "Pre-print Update Mode",
+                                              description=None)
+    arxiv_update_group.add_option(
+        '-u', '--update_arxiv',
+        default=False, action="store_true",
+        help='Check arXiv pre-prints for updated bibcodes')
+    arxiv_update_group.add_option(
+        '-f', '--from_date',
+        help='MM/YY date of publication from which to start updating arXiv')
+    arxiv_update_group.add_option(
+        '-t', '--to_date',
+        help='MM/YY date of publication up to which update arXiv')
+    parser.add_option_group(arxiv_update_group)
     options, args = parser.parse_args()
-
-    if options.ingestPdfs:
-        ingest_pdfs(options, args)
-    else:
-        process_articles(options, args)
-
-def process_articles(options, args):
-    """Workflow for processing article tokens"""
-    if len(args) == 1:
-        articleTokens = list(args)
-    else:
-        # Try to use standard input
-        articleTokens = map(lambda s: s.strip(), sys.stdin.readlines())
 
     # Get preferences from (optional) config file
     prefs = Preferences()
+    # inject options into preferences for later reference
+    prefs['options'] = options.__dict__
     if options.debug:
         prefs['debug'] = True
 
-    # Make the embedder script
-    insertScript = EmbeddedInsertionScript()
-    insertScript.install()
+    # Logging saves to log file on when in DEBUG mode
+    # Always prints to STDOUT as well
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(name)s %(levelname)s %(message)s',
+        filename=prefs['log_path'])
+    if not prefs['debug']:
+        logging.getLogger('').setLevel(logging.INFO)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    logging.getLogger('').addHandler(ch)
 
-    for articleToken in articleTokens:
-        process_token(articleToken, prefs, insertScript)
-        if len(articleTokens) &gt; 1: time.sleep(15)
+    logging.info("Starting ADS to BibDesk")
+    logging.debug("ADS to BibDesk version %s" % VERSION)
+    logging.debug("Python: %s", sys.version)
+
+    # Launch the specific workflow
+    if options.ingest_pdfs:
+        ingest_pdfs(options, args, prefs)
+    elif options.only_pdf:
+        # short-circuit process_articles
+        # since BibDesk is not needed
+        # FIXME smells like a refactor
+        process_token(args[0], prefs, None)
+    elif options.update_arxiv:
+        update_arxiv(options, prefs)
+    else:
+        process_articles(args, prefs)
 
 
-def process_token(articleToken, prefs, insertScript):
-    """Process a single article token from the user.
-    :param articleToken: Any user-supplied `str` token.
-    :param prefs": A `Preferences` instance.
-    :param insertScript: An `EmbeddedInsertionScript` instance.
+def process_articles(args, prefs, delay=15):
+    """Workflow for processing article tokens and running process_token()
+    to add the article to BibDesk.
     """
-    # Determine what we're dealing with. The goal is to get a URL into ADS
-    # adsURL = parseURL(articleID[0], prefs)
-    if prefs['debug']: print "article token", articleToken
-    connector = ADSConnector(articleToken, prefs)
-    if prefs['debug']: print "derived url", connector.adsURL
-    if connector.adsRead is None:
-        if prefs['debug']: "skipping", articleToken
-        return
+    # FIXME is there ever actually a case where args is None?
+    if args:
+        article_tokens = list(args)
+    else:
+        # Try to use standard input
+        article_tokens = [s.strip() for s in sys.stdin.readlines()
+                          if s.strip()]
 
-    # parse the ADS HTML file
-    ads = ADSHTMLParser(prefs=prefs)
-    ads.parse(connector.adsRead)
-    # pdf local file, title, first author, abstract, bibtex code
-    # UTF-8 encoded
-    output = ''.join(map(lambda x: x.encode('utf-8'), [ads.getPDF(), '|||',
-                                                    ads.title, '|||',
-                                                    ads.author[0], '|||',
-                                                    ads.abstract, '|||',
-                                                    ads.bibtex.__str__()]))
-    # Escpe backslashes
-    output = output.replace('\\', '\\\\')
-    # Escape double quotes
-    output = output.replace('"', '\\"')
-    cmd = 'osascript %s "%s"' % (insertScript.compiledPath, output)
-    if prefs['debug']:
-        print cmd
-    subprocess.call(cmd, shell=True)
+    # AppKit hook for BibDesk
+    bibdesk = BibDesk()
+
+    for article_token in article_tokens:
+        print("Processing article {0}".format(article_token))
+        try:
+            process_token(article_token, prefs, bibdesk)
+        except ADSException as err:
+            logging.debug('%s failed - %s' % (article_token, err))
+        if len(article_tokens) &gt; 1 and article_token != article_tokens[-1]:
+            time.sleep(delay)
+
+    bibdesk.app.dealloc()
 
 
-def ingest_pdfs(options, args):
+# FIXME this function needs to be refactored
+def process_token(article_token, prefs, bibdesk):
+    """Process a single article token from the user, adding it to BibDesk.
+
+    Parameters
+    ----------
+    article_token : str
+        Any user-supplied `str` token.
+    prefs : :class:`Preferences`
+        A `Preferences` instance.
+    bibdesk : :class:`BibDesk`
+        A `BibDesk` AppKit hook instance.
+    """
+    # Determine what we're dealing with
+    # The goal is to get a URL into ADS
+    logging.debug("process_token found article token %s", article_token)
+    connector = ADSConnector(article_token, prefs)
+    ads_parser = ADSHTMLParser(prefs=prefs)
+
+    if isinstance(connector.ads_read, basestring):
+        # parse the ADS HTML file
+        ads_parser.parse(connector.ads_read)
+
+    elif connector.ads_read and getattr(connector, 'bibtex') is not None:
+        # parsed from arXiv - dummy ads info
+        ads_parser.bibtex = connector.bibtex
+        ads_parser.arxivid = ads_parser.bibtex.Eprint
+        ads_parser.author = ads_parser.bibtex.Author.split(' and ')
+        ads_parser.title = ads_parser.bibtex.Title
+        ads_parser.abstract = ads_parser.bibtex.Abstract
+        ads_parser.comment = ads_parser.bibtex.AdsComment
+        # original URL where we *should* have gotten the info
+        ads_parser.bibtex.AdsURL = connector.ads_url
+        # inject arXiv mirror into ArXivURL
+        if 'arxiv_mirror' in prefs and prefs['arxiv_mirror']:
+            tmpurl = urlsplit(ads_parser.bibtex.ArXivURL)
+            ads_parser.bibtex.ArXivURL = urlunsplit(
+                (tmpurl.scheme,
+                 prefs['arxiv_mirror'],
+                 tmpurl.path, tmpurl.query,
+                 tmpurl.fragment))
+        # link for PDF download
+        try:
+            link = [l.get('href', '') for l in ads_parser.bibtex.info['link']
+                    if l.get('title') == 'pdf'][0]
+            ads_parser.links = {'preprint': link}
+        except IndexError:
+            logging.debug("process_token could not find preprint PDF link")
+            pass
+
+    elif connector.ads_read is None:
+        logging.debug("process_token skipping %s", article_token)
+        logging.info("Skipped article {0}".format(article_token))
+        import ipdb; ipdb.set_trace()
+        return False
+
+    # get PDF first
+    pdf = ads_parser.get_pdf()
+
+    # TODO refactor this out into a 'show_pdf' function
+    if prefs['options'].get('only_pdf'):
+        if not pdf.endswith('.pdf'):
+            return False
+        # just open PDF
+        reader = ('pdf_reader' in prefs and
+                  prefs['pdf_reader'] is not None) and \
+            prefs['pdf_reader'] or 'Finder'
+        app = AppKit.NSAppleScript.alloc()
+        app.initWithSource_(
+            'tell application "%s" '
+            'to open ("%s" as POSIX file)' % (reader, pdf)).\
+            executeAndReturnError_(None)
+        # get name of the used viewer
+        # (Finder may be defaulted to something else than Preview)
+        if reader == 'Finder':
+            reader = app.initWithSource_(
+                'return name of (info for (path to frontmost application))').\
+                executeAndReturnError_(None)[0].stringValue()
+        logging.debug('opening %s with %s' % (pdf, reader))
+        if 'skim' in reader.lower():
+            time.sleep(1)  # give it time to open
+            app.initWithSource_(
+                'tell application "%s" to set view settings '
+                'of first document to {auto scales:true}'
+                % reader).executeAndReturnError_(None)
+        app.dealloc()
+        return True
+
+    # search for already existing publication
+    # with exactly the same title and first author
+    # match title and first author using fuzzy string comparison
+    # FIXME put cutoff into preferences; could be related to problems
+    # FIXME refactor this out
+    found = difflib.get_close_matches(
+        ads_parser.title, bibdesk.titles,
+        n=1, cutoff=.7)
+    kept_pdfs = []
+    kept_fields = {}
+    # first author is the same
+    if found and difflib.SequenceMatcher(
+            None,
+            bibdesk.authors(bibdesk.pid(found[0]))[0],
+            ads_parser.author[0]).ratio() &gt; .6:
+        # further comparison on abstract
+        abstract = bibdesk('abstract', bibdesk.pid(found[0])).stringValue()
+        if not abstract or difflib.SequenceMatcher(
+                None, abstract,
+                ads_parser.abstract).ratio() &gt; .6:
+            pid = bibdesk.pid(found[0])
+            # keep all fields for later comparison
+            # (especially rating + read bool)
+            kept_fields = dict((k, v) for k, v in
+                               zip(bibdesk('return name of fields', pid, True),
+                               bibdesk('return value of fields', pid, True))
+                               # Adscomment may be arXiv only
+                               if k != 'Adscomment')
+            # plus BibDesk annotation
+            kept_fields['BibDeskAnnotation'] = bibdesk(
+                'return its note', pid).stringValue()
+            kept_pdfs += bibdesk.safe_delete(pid)
+            notify('Duplicate publication removed',
+                   article_token, ads_parser.title)
+            bibdesk.refresh()
+
+    # FIXME refactor out this bibdesk import code?
+    # add new entry
+    pub = bibdesk(
+        'import from "%s"' % ads_parser.bibtex.__str__().
+        replace('\\', r'\\').replace('"', r'\"'))
+    # pub id
+    pub = pub.descriptorAtIndex_(1).descriptorAtIndex_(3).stringValue()
+    # automatic cite key
+    bibdesk('set cite key to generated cite key', pub)
+
+    # abstract
+    if ads_parser.abstract.startswith('http://'):
+        # old scanned articles
+        bibdesk(
+            'make new linked URL at end of linked URLs '
+            'with data "%s"' % ads_parser.abstract, pub)
+    else:
+        bibdesk(
+            'set abstract to "%s"'
+            % ads_parser.abstract.replace('\\', r'\\').replace('"', r'\"'),
+            pub)
+
+    doi = bibdesk('value of field "doi"', pub).stringValue()
+    if pdf.endswith('.pdf'):
+        # register PDF into BibDesk
+        bibdesk('add POSIX file "%s" to beginning of linked files' % pdf, pub)
+        # automatic file name
+        bibdesk('auto file', pub)
+    elif 'http' in pdf and not doi:
+        # URL for electronic version - only add it if no DOI link present
+        # (they are very probably the same)
+        bibdesk(
+            'make new linked URL at end of linked URLs with data "%s"'
+            % pdf, pub)
+
+    # add URLs as linked URL if not there yet
+    urls = bibdesk(
+        'value of fields whose name ends with "url"',
+        pub, strlist=True)
+    urlspub = bibdesk('linked URLs', pub, strlist=True)
+    for u in [u for u in urls if u not in urlspub]:
+        bibdesk(
+            'make new linked URL at end of linked URLs with data "%s"'
+            % u, pub)
+
+    # add old annotated files
+    for kept_pdf in kept_pdfs:
+        bibdesk('add POSIX file "%s" to end of linked files' % kept_pdf, pub)
+
+    # re-insert custom fields
+    bibdesk(
+        'set its note to "%s"' % kept_fields.pop('BibDeskAnnotation', ''),
+        pub)
+    newFields = bibdesk('return name of fields', pub, True)
+    for k, v in kept_fields.iteritems():
+        if k not in newFields:
+            bibdesk('set value of field "%s" to "%s"' % (k, v), pub)
+    notify('New publication added',
+           bibdesk('cite key', pub).stringValue(),
+           ads_parser.title)
+
+
+def ingest_pdfs(options, args, prefs):
     """Workflow for attempting to ingest a directory of PDFs into BibDesk.
-    
+
     This workflow attempts to scape DOIs from the PDF text, which are then
     added to BibDesk using the usual `process_token` function.
     """
     assert len(args) == 1, "Please pass a path to a directory"
-    pdfDir = args[0]
-    assert os.path.exists(pdfDir) is True, "%s does not exist" % pdfDir
-    print "Searching", pdfDir
-   
+    pdf_dir = args[0]
+    assert os.path.exists(pdf_dir) is True, "%s does not exist" % pdf_dir
+    print("Searching", pdf_dir)
+
     if options.recursive:
         # Recursive glob solution from
-        # http://stackoverflow.com/questions/2186525/use-a-glob-to-find-files-recursively-in-python
-        pdfPaths = []
-        for root, dirnames, filenames in os.walk(pdfDir):
+        # http://stackoverflow.com/a/2186565
+        pdf_paths = []
+        for root, dirnames, filenames in os.walk(pdf_dir):
             for filename in fnmatch.filter(filenames, '*.pdf'):
-                pdfPaths.append(os.path.join(root, filename))
+                pdf_paths.append(os.path.join(root, filename))
     else:
-        pdfPaths = glob.glob(os.path.join(pdfDir, "*.pdf"))
-
-    # Get preferences from (optional) config file
-    prefs = Preferences()
-    if options.debug:
-        prefs['debug'] = True
-
-    # Make the embedder script
-    insertScript = EmbeddedInsertionScript()
-    insertScript.install()
+        pdf_paths = glob.glob(os.path.join(pdf_dir, "*.pdf"))
 
     # Process each PDF, looking for a DOI
     grabber = PDFDOIGrabber()
-    for i, pdfPath in enumerate(pdfPaths):
-        print "%i of %i" % (i + 1, len(pdfPaths))
-        dois = grabber.search(pdfPath)
-        if len(dois) == 0:
-            print "No DOIs for", pdfPath
+    found = []
+    for i, pdf_path in enumerate(pdf_paths):
+        dois = grabber.search(pdf_path)
+        if not dois:
+            logging.info(
+                "%i of %i: no DOIs for %s"
+                % (i + 1, len(pdf_paths), pdf_path))
         else:
+            found.extend(dois)
             for doi in dois:
-                print os.path.basename(pdfPath), "=", doi
-                process_token(doi, prefs, insertScript)
-        # Pacing so ADS won't treat us like a reckless 'bot!
-        if len(dois) &gt; 1: time.sleep(15.)
+                logging.info(
+                    "%i of %i: %s = %s"
+                    % (i + 1, len(pdf_paths), os.path.basename(pdf_path), doi))
+
+    # let process_articles inject everything
+    if found:
+        logging.info('Adding %i articles to BibDesk...' % len(found))
+        process_articles(found, prefs)
+
+
+def update_arxiv(options, prefs):
+    """
+    Workflow for updating arXiv pre-prints automatically with newer bibcodes.
+    """
+    assert options.from_date is None or \
+        re.match('^\d{2}/\d{2}$', options.from_date) is not None, \
+        '--from_date needs to be in MM/YY format'
+    assert options.to_date is None or \
+        re.match('^\d{2}/\d{2}$', options.to_date) is not None, \
+        '--to_date needs to be in MM/YY format'
+
+    def b2d(bibtex):
+        """BibTex -&gt; publication date"""
+        m = re.search('Month = \{?(\w*)\}?', bibtex).group(1)
+        y = re.search('Year = \{?(\d{4})\}?', bibtex).group(1)
+        return datetime.datetime.strptime(m + y, '%b%Y')
+
+    def recent(added, fdate, tdate):
+        fromdate = fdate is not None and \
+            datetime.datetime.strptime(fdate, '%m/%y')\
+            or datetime.datetime(1900, 1, 1)
+        todate = tdate is not None and \
+            datetime.datetime.strptime(tdate, '%m/%y')\
+            or datetime.datetime(3000, 1, 1)
+        return fromdate &lt;= added &lt;= todate
+
+    # frontmost opened BibDesk document
+    bibdesk = BibDesk()
+    ids = []
+
+    # check for adsurl containing arxiv or astro.ph bibcodes
+    arxiv = bibdesk(
+        'return publications whose '
+        '(value of field "Adsurl" contains "arXiv") or '
+        '(value of field "Adsurl" contains "astro.ph")')
+
+    if arxiv.numberOfItems():
+        # extract arxiv id from the ADS url
+        ids = [u.split('bib_query?')[-1].split('abs/')[-1] for u in
+               bibdesk(
+                   'tell publications whose '
+                   '(value of field "Adsurl" contains "arXiv") or '
+                   '(value of field "Adsurl" contains "astro.ph") '
+                   'to return value of field "Adsurl"', strlist=True)]
+        dates = [b2d(b) for b in
+                 bibdesk(
+                     'tell publications whose '
+                     '(value of field "Adsurl" contains "arXiv") or '
+                     '(value of field "Adsurl" contains "astro.ph") '
+                     'to return bibtex string', strlist=True)]
+        # arxiv ids to search
+        ids = [b for d, b in zip(dates, ids)
+               if recent(d, options.from_date, options.to_date)]
+
+    bibdesk.app.dealloc()
+
+    if not ids:
+        print('Nothing to update!')
+        sys.exit()
+    else:
+        n = len(ids)
+        t = math.ceil(n * 15. / 60.)
+        if t &gt; 1:
+            time_unit = "minutes"
+        else:
+            time_unit = "minute"
+        logging.info('Checking %i arXiv entries for changes...' % n)
+        logging.info(
+            '(to prevent ADS flooding this will take a while, '
+            'check back in around %i %s)' % (t, time_unit))
+
+    changed = []
+    for n, i in enumerate(ids):
+        # sleep for 15 seconds, to prevent ADS flooding
+        time.sleep(15)
+        logging.debug("arxiv id %s" % i)
+        # these are ADS bibcodes by default
+        adsURL = urlunsplit(
+            ('http', prefs['ads_mirror'],
+             'cgi-bin/bib_query', i, ''))
+        logging.debug("adsURL %s" % adsURL)
+        # parse the ADS HTML file
+        ads_parser = ADSHTMLParser(prefs=prefs)
+        try:
+            ads_parser.parse_at_url(adsURL)
+        except ADSException as err:
+            logging.debug('%s update failed: %s' % (i, err))
+            continue
+        logging.debug("ads.bibtex %s" % ads_parser.bibtex)
+        if ads_parser.bibtex is None:  # ADSHTMLParser failed
+            logging.debug("FAILURE: ads.bibtex is None!")
+            continue
+        if ads_parser.bibtex.bibcode != i:
+            logging.info(
+                '%i. %s has become %s'
+                % (n + 1, i, ads_parser.bibtex.bibcode))
+            changed.append(i)
+        else:
+            logging.info('%i. %s has not changed' % (n + 1, i))
+            continue
+
+    # run changed entries through the main loop
+    if changed and raw_input(
+            'Updating %i entries, continue? (y/[n]) '
+            % len(changed)) in ('Y', 'y'):
+        logging.info(
+            '(to prevent ADS flooding, we will wait for a while '
+            'between each update, so go grab a coffee)')
+        process_articles(changed, prefs)
+    elif not changed:
+        logging.info('Nothing to update!')
+
+
+def notify(title, subtitle, desc, sticky=False):
+    """Publish a notification to Notification Center
+
+    Adaptation of original by Moises Aranas
+    https://github.com/maranas/pyNotificationCenter
+    """
+    try:
+        import objc
+        notification = objc.lookUpClass('NSUserNotification').alloc().init()
+        notification.setTitle_(title)
+        notification.setInformativeText_(desc)
+        notification.setSubtitle_(subtitle)
+        objc.lookUpClass('NSUserNotificationCenter').\
+            defaultUserNotificationCenter().scheduleNotification_(notification)
+        notification.dealloc()
+    # this will be either ImportError or objc.nosuchclass_error
+    except Exception:
+        # revert to growl
+        if subtitle:
+            desc = subtitle + ': ' + desc
+        growl_notify(title, desc, sticky)
+
+
+def growl_notify(title, desc, sticky=False):
+    title = title.replace('"', r'\"')
+    desc = desc.replace('"', r'\"')
+    # http://bylr.net/3/2011/09/applescript-and-growl/
+    # is growl running?
+    app = AppKit.NSAppleScript.alloc()
+    growl = app.initWithSource_(
+        'tell application "System Events" to return '
+        'processes whose creator type contains "GRRR"').\
+        executeAndReturnError_(None)[0]
+    if growl.numberOfItems():
+        growlapp = growl.descriptorAtIndex_(1).descriptorAtIndex_(3).\
+            stringValue()
+        # register
+        app.initWithSource_(
+            'tell application "%s" to register as '
+            'application "BibDesk" '
+            'all notifications {"BibDesk notification"} '
+            'default notifications {"BibDesk notification"}'
+            % growlapp).executeAndReturnError_(None)
+        # and notify
+        app.initWithSource_(
+            'tell application "%s" to notify with name '
+            '"BibDesk notification" application name "BibDesk" '
+            'priority 0 title "%s" description "%s" %s'
+            % (growlapp, title, desc, "with sticky" if sticky else '')).\
+            executeAndReturnError_(None)
+    app.dealloc()
+
+
+def has_annotationss(f):
+    return sp.Popen(
+        "strings %s | grep  -E 'Contents[ ]{0,1}\('" % f,
+        shell=True, stdout=sp.PIPE,
+        stderr=open('/dev/null', 'w')).stdout.read() != ''
+
+
+def get_redirect(url):
+    """Utility function to intercept final URL of HTTP redirection"""
+    if 'MNRAS' in url:
+        # MNRAS rejects requests from "non-browsers"
+        response = requests.get(url,
+                                headers={'User-Agent':
+                                         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'})
+    else:
+        response = requests.get(url)
+    response.raise_for_status()
+    return response.url
+    #try:
+    #    out = urllib2.urlopen(url)
+    #except urllib2.URLError as out:
+    #    pass
+    #return out.geturl()
+
+
+class PDFDOIGrabber(object):
+    """Converts PDFs to text and attempts to match all DOIs"""
+    def __init__(self):
+        super(PDFDOIGrabber, self).__init__()
+        regstr = r'(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?!["&amp;\'&lt;&gt;\)\.,])\S)+)'
+        self.pattern = re.compile(regstr)
+
+    def search(self, pdfPath):
+        """Return a list of DOIs in the text of the PDF at `pdfPath`"""
+        json_path = os.path.splitext(pdfPath)[0] + ".json"
+        if os.path.exists(json_path):
+            os.remove(json_path)
+        sp.call('pdf2json -q "%s" "%s"' % (pdfPath, json_path), shell=True)
+        data = open(json_path, 'r').read()
+        doi_matches = self.pattern.findall(data)
+        if os.path.exists(json_path):
+            os.remove(json_path)
+
+        # strings can find some stuff that pdf2json does not
+        if not doi_matches:
+            data = sp.Popen(
+                "strings %s" % pdfPath,
+                shell=True, stdout=sp.PIPE,
+                stderr=open('/dev/null', 'w')).stdout.read()
+            doi_matches = self.pattern.findall(data)
+
+        return list(set(doi_matches))
 
 
 class ADSConnector(object):
     """Receives input (token), derives an ADS url, and attempts to connect
     to the corresponding ADS abstract page with urllib2.urlopen().
-    
+
     Tokens are tested in order of:
-    
+
     - arxiv identifiers
     - bibcodes / digital object identifier (DOI)
     - ADS urls
@@ -273,81 +756,121 @@ class ADSConnector(object):
         super(ADSConnector, self).__init__()
         self.token = str(token)
         self.prefs = prefs
-        self.adsURL = None # string URL to ADS
-        self.adsRead = None # a urllib2.urlopen connection to ADS
-        self.urlParts = urlparse.urlsplit(token) # supposing it is a URL
+        self.ads_url = None  # string URL to ADS
+        self.ads_read = None  # a urllib2.urlopen connection to ADS
+        self.url_parts = urlsplit(token)  # supposing it is a URL
 
-        # An arXiv identifier?
+        # An arXiv identifier or URL?
         if self._is_arxiv():
-            if self.prefs['debug']:
-                print "Found arXiv ID", self.token
+            logging.debug("ADSConnector found arXiv ID %s", self.token)
+            # Try to open the ADS page
+            if not self._read(self.ads_url):
+                # parse arxiv instead:
+                logging.debug('ADS page (%s) not found for %s' %
+                              (self.ads_url, self.token))
+                notify('ADS page not found', self.token,
+                       'Parsing the arXiv page...')
+                arxiv_bib = ArXivParser()
+                try:
+                    arxiv_bib.parse_at_id(self.arxiv_id)
+                    logging.debug(
+                        "arXiv page (%s) parsed for %s"
+                        % (arxiv_bib.url, self.token))
+                except ArXivException as err:
+                    logging.debug("ADS and arXiv failed, you're in trouble...")
+                    raise ADSException(err)
+
+                # dummy ads_read and bibtex
+                self.ads_read = True
+                self.bibtex = arxiv_bib
+
         # A bibcode from ADS?
-        elif not self.urlParts.scheme and self._is_bibcode():
-            if self.prefs['debug']:
-                print "Found ADS bibcode / DOI", self.token
+        elif not self.url_parts.scheme and self._is_bibcode():
+            logging.debug("ADSConnector found bibcode/DOI %s", self.token)
         else:
-            # If the path lacks http://, tack it on because the token *must* be a URL now
+            # If the path lacks http://, tack it on because
+            # the token *must* be a URL now
             if not self.token.startswith("http://"):
                 self.token = 'http://' + self.token
-            self.urlParts = urlparse.urlsplit(self.token) # supposing it is a URL
+            # supposing it is a URL
+            self.url_parts = urlsplit(self.token)
 
             # An abstract page at any ADS mirror site?
-            if self.urlParts.netloc in self.prefs.adsmirrors and self._is_ads_page():
-                if self.prefs['debug']:
-                    print "Found ADS page", self.token
-            elif "arxiv" in self.urlParts.netloc and self._is_arxiv_page():
-                if self.prefs['debug']:
-                    print "Found arXiv page", self.token
+            if self.url_parts.netloc in self.prefs.adsmirrors \
+                    and self._is_ads_page():
+                logging.debug("ADSConnector found ADS page %s", self.token)
+            else:
+                logging.debug("ADSConnector found nothing for %s", self.token)
 
     def _is_arxiv(self):
         """Try to classify the token as an arxiv article, either:
+
         - new style (YYMM.NNNN), or
         - old style (astro-ph/YYMMNNN)
+
         :return: True if ADS page is recovered
         """
-        arxivPattern = re.compile('(\d{4,6}.\d{4,6}|astro\-ph/\d{7})')
-        arxivMatches = arxivPattern.findall(self.token)
-        if len(arxivMatches) == 1:
-            arxivID = arxivMatches[0]
-            self.adsURL = urlparse.urlunsplit(('http', self.prefs['ads_mirror'],
-                                               'cgi-bin/bib_query', 'arXiv:%s' % arxivID, ''))
-            # Try to open the ADS page
-            return self._read(self.adsURL)
+        arxiv_pattern = re.compile('(\d{4,6}\.\d{4,6}|astro\-ph/\d{7})')
+        arxiv_matches = arxiv_pattern.findall(self.token)
+        if len(arxiv_matches) == 1:
+            self.arxiv_id = arxiv_matches[0]
+            self.ads_url = urlunsplit((
+                'http',
+                self.prefs['ads_mirror'],
+                'cgi-bin/bib_query',
+                'arXiv:%s' % self.arxiv_id, ''))
+            return True
         else:
+            self.arxiv_id = None
             return False
-    
+
     def _is_bibcode(self):
         """Test if the token corresponds to an ADS bibcode or DOI"""
-        self.adsURL = urlparse.urlunsplit(('http', self.prefs['ads_mirror'],
-                                           'doi/%s' % self.token, '', ''))
-        return self._read(self.adsURL)
+        self.ads_url = urlunsplit((
+            'http', self.prefs['ads_mirror'],
+            'doi/%s' % self.token, '', ''))
+        read = self._read(self.ads_url)
+        if read:
+            return read
+        else:
+            self.ads_url = urlunsplit((
+                'http',
+                self.prefs['ads_mirror'], 'abs/%s' % self.token, '', ''))
+            read = self._read(self.ads_url)
+            return read
 
     def _is_ads_page(self):
         """Test if the token is a url to an ADS abstract page"""
         # use our ADS mirror
-        url = self.urlParts
-        self.adsURL = urlparse.urlunsplit((url.scheme, self.prefs['ads_mirror'],
-                                           url.path, url.query, url.fragment))
-        return self._read(self.adsURL)
-    
-    def _is_arxiv_page(self):
-        """Test if the token is a url to an arxiv abstract page."""
-        # get paper identifier from URL and inject into ADS query
-        url = self.urlParts
-        arxivid = '/'.join(url.path.split('/')[2:]),
-        self.adsURL = urlparse.urlunsplit(('http', self.prefs['ads_mirror'],
-                                           'cgi-bin/bib_query', 'arXiv:%s' % arxivid, ''))
-        return self._read(self.adsURL)
-    
-    def _read(self, adsURL):
-        """Attempt a connection to adsURL, saving the read to
-        self.adsread.
+        url = self.url_parts
+        self.ads_url = urlunsplit((
+            url.scheme,
+            self.prefs['ads_mirror'],
+            url.path, url.query, url.fragment))
+        return self._read(self.ads_url)
+
+    def _read(self, ads_url):
+        """Attempt a connection to ads_url, saving the read to
+        self.ads_read.
+
         :return: True if successful, False otherwise
         """
         try:
-            self.adsRead = urllib2.urlopen(adsURL).read()
+            # remove &lt;head&gt;...&lt;/head&gt; - often broken HTML
+            response = requests.get(ads_url)
+            response.raise_for_status()
+            htmldata = response.text
+            #htmldata = urllib2.urlopen(ads_url).read()
+            #try:
+            #    htmldata = htmldata.decode('utf-8')
+            #except AttributeError:
+            #    pass
+            self.ads_read = re.sub(
+                r'&lt;head&gt;[\s\S]*&lt;/head&gt;', '',
+                htmldata)
             return True
-        except urllib2.HTTPError:
+        except Exception as ex:
+            print("Exception is: {0}".format(ex))
             return False
 
 
@@ -357,11 +880,12 @@ class Preferences(object):
     """
 
     def __init__(self):
-        self.prefsPath = os.path.join(os.getenv('HOME'), '.adsbibdesk')
-        self._adsmirrors = ['adsabs.harvard.edu',
+        self.prefs_path = os.path.expanduser('~/.adsbibdesk')
+        self._adsmirrors = [
+                            'esoads.eso.org',
+                            'adsabs.harvard.edu',
                             'cdsads.u-strasbg.fr',
                             'ukads.nottingham.ac.uk',
-                            'esoads.eso.org',
                             'ads.ari.uni-heidelberg.de',
                             'ads.inasan.ru',
                             'ads.mao.kiev.ua',
@@ -372,11 +896,11 @@ class Preferences(object):
                             'ads.iucaa.ernet.in',
                             'www.ads.lipi.go.id']
 
-        self.prefs = self._getDefaultPrefs() # Hard coded defaults dictionary
-        newPrefs = self._getPrefs() # load user prefs from disk
-        self.prefs.update(newPrefs) # override defaults with user prefs
+        self.prefs = self._get_default_prefs()  # Hard coded defaults dict
+        new_prefs = self._get_prefs()  # load user prefs from disk
+        self.prefs.update(new_prefs)  # override defaults with user prefs
         self._keys = self.prefs.keys()
-        self._iterIndex = -1
+        self._iter_index = -1
 
     def __getitem__(self, key):
         return self.prefs[key]
@@ -389,31 +913,35 @@ class Preferences(object):
         return self
 
     def next(self):
-        if self._iterIndex == len(self._keys)-1:
-            self._iterIndex = -1
+        if self._iter_index == len(self._keys) - 1:
+            self._iter_index = -1
             raise StopIteration
-        self._iterIndex += 1
-        return self._keys[self._iterIndex]
+        self._iter_index += 1
+        return self._keys[self._iter_index]
 
-    def _getDefaultPrefs(self):
+    def _get_default_prefs(self):
         """:return: a dictionary of the full set of default preferences. This
         is done in case the user's preference file is missing a key-value pair.
         """
         return {"ads_mirror": "adsabs.harvard.edu",
                 "arxiv_mirror": None,
                 "download_pdf": True,
+                "pdf_reader": None,
                 "ssh_user": None,
                 "ssh_server": None,
-                "debug": False}
+                "debug": False,
+                "log_path": os.path.expanduser("~/.adsbibdesk.log")}
 
-    def _getPrefs(self):
-        """Read preferences files from `self.prefsPath`, creates one otherwise."""
+    def _get_prefs(self):
+        """Read preferences files from `self.prefs_path`, creates one
+        otherwise.
+        """
         prefs = {}
         # create a default preference file if non existing
-        if not os.path.exists(self.prefsPath):
-            self._writeDefaultPrefs()
+        if not os.path.exists(self.prefs_path):
+            self._write_default_prefs()
 
-        for l in open(self.prefsPath):
+        for l in open(self.prefs_path):
             if l.strip() and not l.strip().startswith('#'):
                 if '=' not in l:
                     # badly formed setting
@@ -431,12 +959,12 @@ class Preferences(object):
 
         return prefs
 
-    def _writeDefaultPrefs(self):
+    def _write_default_prefs(self):
         """
         Set a default preferences file (~/.adsbibdesk)
         """
-        prefs = open(self.prefsPath, 'w')
-        print &gt;&gt; prefs, """# ADS mirror
+        with open(self.prefs_path, 'w') as prefs:
+            prefs.write("""# ADS mirror
 ads_mirror=%s
 
 # arXiv mirror
@@ -451,37 +979,132 @@ download_pdf=%s
 ssh_user=%s
 ssh_server=%s""" % (self.prefs['ads_mirror'], self.prefs['arxiv_mirror'],
                     self.prefs['download_pdf'], self.prefs['ssh_user'],
-                    self.prefs['ssh_server'])
-
-        prefs.close()
+                    self.prefs['ssh_server']))
 
     @property
     def adsmirrors(self):
         return self._adsmirrors
 
 
-class BibTex:
+class BibTex(object):
 
     def __init__(self, url):
         """
         Create BibTex instance from ADS BibTex URL
         """
-        bibtex = urllib2.urlopen(url).readlines()
+        bibresponse = requests.get(url)
+        bibtex = bibresponse.text.split("\n")
+        #bibtex_obj = urllib2.urlopen(url)
+        #charset = bibtex_obj.headers.get_content_charset()
+        #bibtex = [x.decode(charset) for x in bibtex_obj.readlines()]
         bibtex = ' '.join([l.strip() for l in bibtex]).strip()
         bibtex = bibtex[re.search('@[A-Z]+\{', bibtex).start():]
         self.type, self.bibcode, self.info = self.parsebib(bibtex)
 
     def __str__(self):
-        return ','.join(['@' + self.type + '{' + self.bibcode] + ['%s=%s' % (i, j) for i, j in self.info.items()]) + '}'
+        return (','.join(
+            ['@' + self.type + '{' + self.bibcode] +
+            ['%s=%s' % (i, j) for i, j in self.info.items()]) + '}')
 
     def parsebib(self, bibtex):
         """
         Parse bibtex code into dictionary
         """
-        r = re.search('(?&lt;=^@)(?P&lt;type&gt;[A-Z]+){(?P&lt;bibcode&gt;\S+)(?P&lt;info&gt;,.+)}$', bibtex)
+        r = re.search(
+            '(?&lt;=^@)(?P&lt;type&gt;[A-Z]+){(?P&lt;bibcode&gt;\S+)(?P&lt;info&gt;,.+)}$',
+            bibtex)
         s = re.split('(,\s\w+\s=\s)', r.group('info'))
-        info = dict([(i[1:].replace('=', '').strip(), j.strip()) for i, j in zip(s[1::2], s[2::2])])
+        info = dict(
+            [(i[1:].replace('=', '').strip(), j.strip())
+                for i, j in zip(s[1::2], s[2::2])])
         return r.group('type'), r.group('bibcode'), info
+
+
+class BibDesk(object):
+    def __init__(self):
+        """
+        Manage BibDesk publications using AppKit
+        """
+        self.app = AppKit.NSAppleScript.alloc()
+        self.refresh()
+
+    def __call__(self, cmd, pid=None, strlist=False, error=False):
+        """
+        Run AppleScript command on first document of BibDesk
+        :param cmd: AppleScript command string
+        :param pid: address call to first/last publication of document
+        :param strlist: return output as list of string
+        :param error: return full output of call, including error
+        """
+        if pid is None:
+            # address all publications
+            cmd = 'tell first document of application "BibDesk" to %s' % cmd
+        else:
+            # address a single publicatin
+            cmd = 'tell first document of application "BibDesk" to '\
+                  'tell first publication whose id is "%s" to %s' % (pid, cmd)
+        output = self.app.initWithSource_(cmd).executeAndReturnError_(None)
+        if not error:
+            output = output[0]
+            if strlist:
+                # objective C nuisances...
+                output = [output.descriptorAtIndex_(i + 1).stringValue()
+                          for i in range(output.numberOfItems())]
+        return output
+
+    def refresh(self):
+        # is there an opened document yet?
+        if self('return name of first document '
+                'of application "BibDesk"', error=True)[1] is not None:
+            # create blank one
+            self('tell application "BibDesk" to make new document')
+        self.titles = self('return title of publications', strlist=True)
+        self.ids = self('return id of publications', strlist=True)
+
+    def pid(self, title):
+        return self.ids[self.titles.index(title)]
+
+    def authors(self, pid):
+        """
+        Get name of authors of publication
+        """
+        return self('name of authors', pid, strlist=True)
+
+    def safe_delete(self, pid):
+        """
+        Safely delete publication + PDFs, taking into account
+        the existence of PDFs with Skim notes
+        """
+        keptPDFs = []
+        files = self('POSIX path of linked files', pid, strlist=True)
+        notes = self('text Skim notes of linked files', pid, strlist=True)
+
+        for f, n in zip([f for f in files if f is not None],
+                        [n for n in notes if n is not None]):
+            if f.lower().endswith('pdf'):
+                if '_notes_' in f:
+                    keptPDFs.append(f)
+                else:
+                    # check for annotations
+                    if n or has_annotationss(f):
+                        suffix = 1
+                        path, ext = os.path.splitext(f)
+                        backup = path + '_notes_%i.pdf' % suffix
+                        while os.path.exists(backup):
+                            suffix += 1
+                            backup = path + '_notes_%i.pdf' % suffix
+                        # rename
+                        os.rename(f, backup)
+                        keptPDFs.append(backup)
+                        if os.path.exists(path + '.skim'):
+                            os.rename(path + '.skim',
+                                      path + '_notes_%i.skim' % suffix)
+                    else:
+                        # remove file
+                        os.remove(f)
+        # delete publication
+        self('delete', pid)
+        return keptPDFs
 
 
 class ADSException(Exception):
@@ -495,12 +1118,16 @@ class ADSHTMLParser(HTMLParser):
         self.links = {}
         self.tag = ''
         self.get_abs = False
+        # None = not seen yet, False = seen but do not store yet, True = store
+        self.get_comment = None
         self.entities = {}
 
         self.bibtex = None
         self.abstract = None
+        self.comment = None
         self.title = ''
         self.author = []
+        self.arxivid = None
 
         self.prefs = kwargs.get('prefs', Preferences()).prefs
 
@@ -510,93 +1137,157 @@ class ADSHTMLParser(HTMLParser):
         http://www.w3.org/Math/characters/byalpha.html
         """
         w3 = 'http://www.w3.org/Math/characters/byalpha.html'
-        mathml = re.search('(?&lt;=&lt;pre&gt;).+(?=&lt;/pre&gt;)', urllib2.urlopen(w3).read(), re.DOTALL).group()
+        mathml_page = requests.get(url)
+        mathml_text = mathml_page.text
+        mathml = re.search('(?&lt;=&lt;pre&gt;).+(?=&lt;/pre&gt;)',
+                           mathml_text, re.DOTALL).group()
         entities = {}
-        for l in mathml[:-1].split('\n'):
+        for l in mathml[:-1].splitlines():
             s = l.split(',')
-            #ignore double hex values like 'U02266-00338'
+            # ignore double hex values like 'U02266-00338'
             if '-' not in s[1]:
-                #hexadecimal -&gt; int values, for unichr
+                # hexadecimal -&gt; int values, for unichr
                 entities[s[0].strip()] = int(s[1].strip()[1:], 16)
         return entities
-    
-    def parse(self, url):
+
+    def parse_at_url(self, url):
+        """Helper method to read data from URL, and passes on to parse()."""
+        try:
+            response = requests.get(url)
+            html_data = response.text
+            #html_data = urllib2.urlopen(url).read()
+        except Exception as ex:
+            print("Exception is: {0}".format(ex))
+            logging.debug("ADSHTMLParser timed out on URL: %s", url)
+            raise ADSException(ex)
+        self.parse(html_data)
+
+    def parse(self, html_data):
         """
         Feed url into our own HTMLParser and parse found bibtex
-        """
-        try:
-            self.feed(url.startswith('http') and urllib2.urlopen(url).read() or url)
-        # HTTP timeout
-        except urllib2.URLError, err:
-            if self.prefs['debug']:
-                print '%s timed out', url
-            raise ADSException(err)
 
-        if self.prefs['debug']:
-            print "ADSHTMLParser links:",
-            print self.links
+        html_data is a string containing HTML data from ADS page.
+        """
+        self.feed(html_data)
+
+        logging.debug("ADSHTMLParser found links: %s",
+                      pprint.pformat(self.links))
 
         if 'bibtex' in self.links:
             self.bibtex = BibTex(self.links['bibtex'])
-            self.title = re.search('(?&lt;={).+(?=})', self.bibtex.info['title']).group().replace('{', '').replace('}', '')
-            self.author = [a.strip() for a in
-                           re.search('(?&lt;={).+(?=})', self.bibtex.info['author']).group().split(' and ')]
-    
+            self.title = re.search(
+                '(?&lt;={).+(?=})',
+                self.bibtex.info['title']).group()\
+                .replace('{', '').replace('}', '')#.encode('utf-8')
+            self.author = [
+                a.strip()#.encode('utf-8')
+                for a in
+                re.search('(?&lt;={).+(?=})', self.bibtex.info['author'])
+                .group().split(' and ')]
+            # bibtex do not have the comment from ADS
+            if self.comment:
+                self.bibtex.info.update(
+                    {'adscomment': '"' + self.comment.replace('"', "'") + '"'})
+            # construct ArXivURL from arXiv identifier
+            if self.arxivid:
+                if 'arxiv_mirror' not in self.prefs \
+                        or not self.prefs['arxiv_mirror']:
+                    # test HTTP redirect to get the arXiv mirror used by ADS
+                    try:
+                        mirror = urlsplit(
+                            get_redirect(self.links['preprint'])).netloc
+                    except KeyError:
+                        mirror = 'arxiv.org'  # this should not happen
+                else:
+                    mirror = self.prefs['arxiv_mirror']
+                url = urlunsplit((
+                    'http', mirror,
+                    'abs/' + self.arxivid, None, None))
+                self.bibtex.info.update({'arxivurl': '"' + url + '"'})
+
     def handle_starttag(self, tag, attrs):
-        #abstract
         if tag.lower() == 'hr' and self.get_abs:
-            self.abstract = self.tag.strip().decode('utf-8')
+            # abstract
+            try:
+                self.abstract = self.tag.strip().decode('utf-8')
+            except AttributeError:
+                self.abstract = self.tag.strip()
             self.get_abs = False
             self.tag = ''
-        #handle old scanned articles abstracts
         elif tag.lower() == 'img' and self.get_abs:
+            # handle old scanned articles abstracts
             self.tag += dict(attrs)['src'].replace('&amp;#38;', unichr(38))
-        #links
         elif tag.lower() == 'a':
+            # links
             if 'href' in dict(attrs):
                 href = dict(attrs)['href'].replace('&amp;#38;', unichr(38))
-                query = cgi.parse_qs(urlparse.urlsplit(href).query)
+                query = cgi.parse_qs(urlsplit(href).query)
                 if 'bibcode' in query:
                     if 'link_type' in query:
                         self.links[query['link_type'][0].lower()] = href
                     elif 'data_type' in query:
                         self.links[query['data_type'][0].lower()] = href
+        elif tag.lower() == 'td' and self.get_comment is False \
+                and 'valign' in dict(attrs):
+            # comment
+            self.get_comment = True
+
+    def handle_endtag(self, tag):
+        if self.get_comment and tag.lower() == 'td':
+            striptag = self.tag.strip()
+            if hasattr(striptag, 'decode'):
+                self.comment = striptag.decode('utf-8')
+            else:
+                self.comment = striptag
+            self.get_comment = None
+            self.tag = ''
 
     def handle_data(self, data):
         if self.get_abs:
             self.tag += data.replace('\n', ' ')
+        if self.get_comment:
+            self.tag += data
 
-        #beginning of abstract found
+        # beginning of abstract found
         if data.strip() == 'Abstract':
             self.get_abs = True
+        if data.strip() == 'Comment:':
+            self.get_comment = False
+        # store arXiv identifier
+        # FIXME perhaps compile this regular expression as a global?
+        if re.search('arXiv:(\d{4,6}.\d{4,6}|astro\-ph/\d{7})', data) \
+                is not None:
+            self.arxivid = re.search(
+                'arXiv:(\d{4,6}.\d{4,6}|astro\-ph/\d{7})',
+                data).group(1)
 
-    #handle html entities
+    # handle html entities
     def handle_entityref(self, name):
         if self.get_abs:
             if name in name2codepoint:
                 c = name2codepoint[name]
-                self.tag += unichr(c).encode('utf-8')
+                self.tag += unichr(c)#.encode('utf-8')
             else:
-                #fetch mathml
+                # fetch mathml
                 if not self.entities:
-                    #cache dict
+                    # cache dict
                     self.entities = self.mathml()
                 if name in self.entities:
                     c = self.entities[name]
-                    self.tag += unichr(c).encode('utf-8')
+                    self.tag += unichr(c)#.encode('utf-8')
                 else:
-                    #nothing worked, leave it as-is
+                    # nothing worked, leave it as-is
                     self.tag += '&amp;' + name + ';'
 
-    #handle unicode chars in utf-8
+    # handle unicode chars in utf-8
     def handle_charref(self, name):
         if self.get_abs:
-            self.tag += unichr(int(name)).encode('utf-8')
+            self.tag += unichr(int(name))#.encode('utf-8')
 
-    def getPDF(self):
+    def get_pdf(self):
         """
-        Fetch PDF and save it locally in a temporary file.
-        Tries by order:
+        Fetch PDF and save it locally in a temporary file. Tries by order:
+
         - refereed article
         - refereed article using another machine (set ssh_user &amp; ssh_server)
         - arXiv preprint
@@ -608,29 +1299,49 @@ class ADSHTMLParser(HTMLParser):
             return 'not downloaded'
 
         def filetype(filename):
-            return sp.Popen('file %s' % filename, shell=True,
+            x = sp.Popen('file %s' % filename, shell=True,
                             stdout=sp.PIPE,
                             stderr=sp.PIPE).stdout.read()
+            try:
+                return x.decode()
+            except:
+                return x
 
         # refereed
         if 'article' in self.links:
             url = self.links['article']
-            if "MNRAS" in url: # Special case for MNRAS URLs to deal with iframe
+            # Resolve URL
+            resolved_url = get_redirect(url)
+            logging.debug("Resolve article URL: %s" % resolved_url)
+            if "filetype=.pdf" in resolved_url:
+                # URL will directly resolve into a PDF
+                pdf_url = resolved_url
+            elif "MNRAS" in resolved_url:
+                # Special case for MNRAS URLs to deal with iframe
                 parser = MNRASParser(self.prefs)
                 try:
                     parser.parse(url)
                 except MNRASException:
-                    # this probably means we have a PDF directly from ADS, just continue
-                    pass
+                    # this probably means we have a PDF directly from ADS
+                    # afterall just continue.
+                    # NOTE this case may be deprecated by resolving the URL
+                    pdf_url = resolved_url
                 if parser.pdfURL is not None:
-                    url = parser.pdfURL
+                    pdf_url = parser.pdfURL
+                else:
+                    pdf_url = resolved_url
+            else:
+                pdf_url = resolved_url
 
             # try locally
-            pdf = tempfile.mktemp() + '.pdf'
+            fd, pdf = tempfile.mkstemp(suffix='.pdf')
             # test for HTTP auth need
             try:
-                open(pdf, 'wb').write(urllib2.urlopen(url).read())
-            except urllib2.HTTPError:
+                response = requests.get(pdf_url)
+                pdf_bytes = response.content
+                os.fdopen(fd, 'wb').write(pdf_bytes)
+            except Exception as err:
+                logging.debug('%s failed: %s' % (pdf_url, err))
                 # dummy file
                 open(pdf, 'w').write('dummy')
 
@@ -639,12 +1350,18 @@ class ADSHTMLParser(HTMLParser):
 
             # try in remote server
             # you need to set SSH public key authentication for this to work!
-            elif 'ssh_user' in self.prefs and self.prefs['ssh_user'] is not None:
-                pdf = tempfile.mktemp() + '.pdf'
-                cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; wget -O adsbibdesk.pdf \\"%s\\"\"' % (self.prefs['ssh_user'], self.prefs['ssh_server'], url)
-                cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' % (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
-                sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE).communicate()
-                sp.Popen(cmd2, shell=True, stdout=sp.PIPE, stderr=sp.PIPE).communicate()
+            elif 'ssh_user' in self.prefs and self.prefs['ssh_user'] \
+                    is not None:
+                fd, pdf = tempfile.mkstemp(suffix='.pdf')
+                cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; ' \
+                    'wget -O adsbibdesk.pdf \\"%s\\"\"' % \
+                    (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf_url)
+                cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' \
+                    % (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
+                sp.Popen(cmd, shell=True,
+                         stdout=sp.PIPE, stderr=sp.PIPE).communicate()
+                sp.Popen(cmd2, shell=True,
+                         stdout=sp.PIPE, stderr=sp.PIPE).communicate()
                 if 'PDF document' in filetype(pdf):
                     return pdf
 
@@ -653,41 +1370,164 @@ class ADSHTMLParser(HTMLParser):
             # arXiv page
             url = self.links['preprint']
             mirror = None
-            for line in urllib2.urlopen(url):
-                if '&lt;h1&gt;&lt;a href="/"&gt;' in line:
-                    mirror = re.search('&lt;h1&gt;&lt;a href="/"&gt;(.*ar[xX]iv.org)', line)
-                elif 'dc:identifier' in line:
-                    begin = re.search('dc:identifier="', line).end()
-                    url = urlparse.urlsplit(line[begin:-2].replace('&amp;#38;', unichr(38)).lower())
-                    # use automatic mirror chosen by the ADS mirror
-                    if ('arxiv_mirror' not in self.prefs or not self.prefs['arxiv_mirror']) and mirror is not None:
-                        url = urlparse.urlunsplit((url.scheme, mirror.group(1), url.path, url.query, url.fragment))
-                    elif self.prefs['arxiv_mirror']:
-                        url = urlparse.urlunsplit((url.scheme, self.prefs['arxiv_mirror'], url.path, url.query, url.fragment))
-                    # get arXiv PDF
-                    pdf = tempfile.mktemp() + '.pdf'
-                    open(pdf, 'wb').write(urllib2.urlopen(url.replace('abs', 'pdf')).read())
-                    if 'PDF document' in filetype(pdf):
-                        return pdf
-                    else:
-                        return url
 
-        #electronic journal
+            # fetch PDF directly without parsing the arXiv page
+            if self.arxivid is not None:
+                # user defined mirror?
+                if 'arxiv_mirror' not in self.prefs \
+                        or not self.prefs['arxiv_mirror']:
+                    # test HTTP redirect to get the arXiv mirror used by ADS
+                    mirror = urlsplit(get_redirect(url)).netloc
+                else:
+                    mirror = self.prefs['arxiv_mirror']
+                url = urlunsplit((
+                    'http', mirror, 'pdf/' + self.arxivid, None, None))
+                logging.debug('arXiv PDF (%s)' % url)
+
+            else:
+                # search for PDF link in the arXiv page
+                # this should be *deprecated*
+                response = requests.get(url)
+                lines = response.text.split("\n")
+                for line in lines:
+                    if '&lt;h1&gt;&lt;a href="/"&gt;' in line:
+                        mirror = re.search(
+                            '&lt;h1&gt;&lt;a href="/"&gt;(.*ar[xX]iv.org)',
+                            line)
+                    elif 'dc:identifier' in line:
+                        begin = re.search('dc:identifier="', line).end()
+                        url = urlsplit(
+                            line[begin:-2].replace('&amp;#38;', unichr(38)).
+                            lower())
+                        # use automatic mirror chosen by the ADS mirror
+                        if ('arxiv_mirror' not in self.prefs
+                                or not self.prefs['arxiv_mirror']) \
+                                and mirror is not None:
+                            url = urlunsplit((
+                                url.scheme,
+                                mirror.group(1), url.path, url.query,
+                                url.fragment))
+                            break
+                        elif self.prefs['arxiv_mirror']:
+                            url = urlunsplit((
+                                url.scheme,
+                                self.prefs['arxiv_mirror'],
+                                url.path, url.query,
+                                url.fragment))
+                            break
+                logging.debug(
+                    'arXiv PDF url (*should be DEPRECATED!*): %s' % url)
+
+            # get arXiv PDF
+            fd, pdf = tempfile.mkstemp(suffix='.pdf')
+            response = requests.get(url.replace('abs', 'pdf'))
+            os.fdopen(fd, 'wb').write(response.content)
+            print(filetype(pdf), type(filetype(pdf)))
+            if 'PDF document' in filetype(pdf):
+                return pdf
+            # PDF was not yet generated in the mirror?
+            elif '...processing...' in open(pdf).read():
+                while '...processing...' in open(pdf).read():
+                    logging.debug('waiting 30s for PDF regeneration')
+                    notify('Waiting for arXiv...', '',
+                           'PDF is being generated, retrying in 30s...')
+                    time.sleep(30)
+                    response = requests.get(url.replace('abs', 'pdf'))
+                    open(pdf, 'wb').write(response.content)
+                if 'PDF document' in filetype(pdf):
+                    return pdf
+                else:
+                    return url
+            else:
+                return url
+
+        # electronic journal
         if 'ejournal' in self.links:
             return self.links['ejournal']
 
         return 'failed'
 
-    
-def test_mnras():
-    prefs = Preferences()
-    prefs['debug'] = True
-    
-    data = '&lt;iframe id="pdfDocument" src="http://onlinelibrary.wiley.com/store/10.1111/j.1365-2966.2010.18174.x/asset/j.1365-2966.2010.18174.x.pdf?v=1&amp;amp;t=gp75eg4q&amp;amp;s=c7ec3f26d269f5f4187799ff6faf44ebe01bbb01" width="100%" height="100%"&gt;&lt;/iframe&gt;'
-    parser = MNRASParser(prefs)
-    # parser.parse(mnrasURL)
-    parser.feed(data)
-    print parser.pdfURL
+
+class ArXivException(Exception):
+    pass
+
+
+class ArXivParser(object):
+
+    def __init__(self):
+        """
+        Parse arXiv information for a *single* arxiv_id
+
+        :param arxiv_id: arXiv identifier
+        """
+        pass
+
+    def parse_at_id(self, arxiv_id):
+        """Helper method to read data from URL, and passes on to parse()."""
+        from xml.etree import ElementTree
+        self.url = 'http://export.arxiv.org/api/query?id_list=' + arxiv_id
+        try:
+            response = requests.get(self.url)
+            self.xml = ElementTree.fromstring(response.text)
+        except Exception as err:
+            logging.debug("ArXivParser failed on URL: %s", self.url)
+            raise ArXivException(err)
+        self.info = self.parse(self.xml)
+        self.bib = self.bibtex(self.info)  # FIXME looks like self.bib is None
+
+    def parse(self, xml):
+        # recursive xml -&gt; list of (tag, info)
+        getc = lambda e: [
+            (c.tag.split('}')[-1], c.getchildren() and
+                dict(getc(c)) or (c.text is not None and re.sub('\s+', ' ',
+                                  c.text.strip()) or c.attrib))
+            for c in e.getchildren()]
+
+        # article info
+        info = {}
+        for k, v in getc(xml.getchildren()[-1]):  # last item is article
+            if isinstance(v, dict):
+                info.setdefault(k, []).append(v)
+            else:
+                info[k] = v
+        return info
+
+    def bibtex(self, info):
+        """
+        Create BibTex entry. Sets a bunch of "attributes" that are used
+        explictly on __str__ as BibTex entries
+
+        :param info: parsed info dict from arXiv
+        """
+        # TODO turn these into properties?
+        self.Author = ' and '.join(
+            ['{%s}, %s' % (a['name'].split()[-1],
+                           '~'.join(a['name'].split()[:-1]))
+             for a in info['author']
+             if len(a['name'].strip()) &gt; 1])#.encode('utf-8')
+        self.Title = info['title']#.encode('utf-8')
+        self.Abstract = info['summary']#.encode('utf-8')
+        self.AdsComment = (info['comment'].replace('"', "'")#.encode('utf-8') \
+                           if 'comment' in info else "")
+        self.Jornal = 'ArXiv e-prints'
+        self.ArchivePrefix = 'arXiv'
+        self.ArXivURL = info['id']
+        self.Eprint = info['id'].split('abs/')[-1]
+        self.PrimaryClass = info['primary_category'][0]['term']
+        self.Year, self.Month = datetime.datetime.strptime(
+            info['published'],
+            '%Y-%m-%dT%H:%M:%SZ').strftime('%Y %b').split()
+
+    def __str__(self):
+        import string
+        return '@article{%s,\n' % self.Eprint +\
+            '\n'.join([
+                '%s = {%s},' % (k, v)
+                for k, v in
+                sorted([(k, v.decode('utf-8') if hasattr(v, 'decode') else v)
+                        for k, v in self.__dict__.iteritems()
+                        if k[0] in uppercase])]) +\
+            '}'
 
 
 class MNRASException(Exception):
@@ -696,7 +1536,7 @@ class MNRASException(Exception):
 
 class MNRASParser(HTMLParser):
     """Handle MNRAS refereed article PDFs.
-    
+
     Unlike other journals, the ADS "Full Refereed Journal Article" URL for a
     MNRAS article points to a PDF embedded in an iframe. This class extracts
     the PDF url given the ADS link.
@@ -704,98 +1544,45 @@ class MNRASParser(HTMLParser):
     def __init__(self, prefs):
         HTMLParser.__init__(self)
         self.prefs = prefs
-        self.pdfURL = None
-    
+        self.pdf_url = None
+
     def parse(self, url):
-        """Parse URL to MNRAS PDF page"""
+        """Parse URL to MNRAS PDF from MNRAS article page.
+        """
         try:
-            self.feed(urllib2.urlopen(url).read())
-        except urllib2.URLError, err: # HTTP timeout
-            if self.prefs['debug']:
-                print 'MNRAS timed out: %s' % url
+            # Detect and decode page's charset
+            logging.debug("Parsing MNRAS url %s" % url)
+            response = requests.get(url)
+            self.feed(response.text)
+            #connection = urllib2.urlopen(url)
+            #encoding = connection.headers.getparam('charset')
+            #if encoding is not None:
+            #    logging.debug("Detected MNRAS encoding %s" % encoding)
+            #    page = connection.read().decode(encoding)
+            #    self.feed(page)
+            #else:
+            #    logging.debug("No detected MNRAS encoding")
+            #    page = connection.read()
+            #    self.feed(page)
+        except Exception as err:
+            logging.debug("MNRASParser timed out: %s", url)
             raise MNRASException(err)
-        except HTMLParseError, err:
+        except HTMLParseError as err:
             raise MNRASException(err)
-    
+
     def handle_starttag(self, tag, attrs):
+        """Called against each HTML tag, looks for metadata indicating
+        the PDF URL.
         """
-        def get_mnras_pdf(url):
-           soup = BeautifulSoup(urllib2.urlopen(url))
-           pdfurl = soup.find('iframe')['src']
-           open('mnras.pdf', 'wb').write(urllib2.urlopen(pdfurl).read())
-        """
-        if tag.lower() == "iframe":
-            attrDict = dict(attrs)
-            self.pdfURL = attrDict['src']
-
-
-class EmbeddedInsertionScript(object):
-    """Manages the bibdesk insertion applescript.
-    
-    In order to make adsbibdesk.py a single-file installation (and Automator
-    action) we need this Python script to spawn the AppleScript interface to
-    BibDesk itself. The `build.py` script is responsible for embedding
-    adsbibdesk.applescript into this Python script.
-    """
-    def __init__(self):
-        super(EmbeddedInsertionScript, self).__init__()
-        self._txtData = "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"
-        self.version = 1  # serializes the current version of this script
-        self.compiledPath = os.path.expanduser(
-                "~/.adsbibdesk_injector_%i.scpt" % self.version)
-
-    def install(self):
-        """Install the compiled script"""
-        self._clean_old_scripts()
-        if os.path.exists(self.compiledPath):
-            return
-        # Write the embedded applescript to a temp file
-        scptTxt = zlib.decompress(binascii.a2b_base64(self._txtData))
-        txtPath = tempfile.mktemp() + '.applescript'
-        tmpFile = open(txtPath, 'w')
-        tmpFile.write(scptTxt)
-        tmpFile.close()
-        cmd = "osacompile -o %s %s" % (self.compiledPath, txtPath)
-        # print "Compiling applescript via:"
-        # print cmd
-        subprocess.call(cmd, shell=True)
-
-    def _clean_old_scripts(self):
-        """Find all injector scripts, and make sure that only the current one
-        exists
-        """
-        paths = glob.glob(os.path.expanduser("~/.adsbibdesk_injector*.scpt"))
-        for p in paths:
-            if p == self.compiledPath:
-                continue
-            else:
-                os.remove(p)
-
-
-class PDFDOIGrabber(object):
-    """Converts PDFs to text (via pdf2json) and attempts to match all DOIs
-    in that text.
-    """
-    def __init__(self):
-        super(PDFDOIGrabber, self).__init__()
-        regstr = r'\b(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?!["&amp;\'&lt;&gt;])\S)+)\b'
-        self.pattern = re.compile(regstr)
-
-    def search(self, pdfPath):
-        """Return a list of DOIs in the text of the PDF at `pdfPath`"""
-        jsonPath = os.path.splitext(pdfPath)[0] + ".json"
-        if os.path.exists(jsonPath): os.remove(jsonPath)
-        subprocess.call("pdf2json -q %s %s" % (pdfPath, jsonPath), shell=True)
-        f = open(jsonPath, 'r')
-        data = f.read()
-        f.close()
-        doiMatches = self.pattern.findall(data)
-        if os.path.exists(jsonPath): os.remove(jsonPath)
-        return doiMatches
+        if tag.lower() == "meta":
+            attrs = dict(attrs)
+            if u'name' in attrs and attrs[u'name'] == u'citation_pdf_url':
+                self.pdf_url = attrs[u'content']
 
 
 if __name__ == '__main__':
-    main()</string>
+    main()
+</string>
 					<key>CheckedForUserDefaultShell</key>
 					<true />
 					<key>inputMethod</key>
