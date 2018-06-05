@@ -1257,9 +1257,10 @@ class ADSHTMLParser(HTMLParser):
             try:
                 resolved_url = get_redirect(url)
             except requests.exceptions.HTTPError as ex:
+                resolved_url = None
                 print("Could not download from URL {0} because of error {1}"
                       .format(url, ex))
-                resolve_url = None
+
             if resolved_url is not None:
                 logging.debug("Resolve article URL: %s" % resolved_url)
                 if "filetype=.pdf" in resolved_url:
