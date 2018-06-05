@@ -1254,59 +1254,65 @@ class ADSHTMLParser(HTMLParser):
         if 'article' in self.links:
             url = self.links['article']
             # Resolve URL
-            resolved_url = get_redirect(url)
-            logging.debug("Resolve article URL: %s" % resolved_url)
-            if "filetype=.pdf" in resolved_url:
-                # URL will directly resolve into a PDF
-                pdf_url = resolved_url
-            elif "MNRAS" in resolved_url:
-                # Special case for MNRAS URLs to deal with iframe
-                parser = MNRASParser(self.prefs)
-                try:
-                    parser.parse(url)
-                except MNRASException:
-                    # this probably means we have a PDF directly from ADS
-                    # afterall just continue.
-                    # NOTE this case may be deprecated by resolving the URL
+            try:
+                resolved_url = get_redirect(url)
+            except requests.exceptions.HTTPError as ex:
+                print("Could not download from URL {0} because of error {1}"
+                      .format(url, ex))
+                resolve_url = None
+            if resolved_url is not None:
+                logging.debug("Resolve article URL: %s" % resolved_url)
+                if "filetype=.pdf" in resolved_url:
+                    # URL will directly resolve into a PDF
                     pdf_url = resolved_url
-                if parser.pdfURL is not None:
-                    pdf_url = parser.pdfURL
+                elif "MNRAS" in resolved_url:
+                    # Special case for MNRAS URLs to deal with iframe
+                    parser = MNRASParser(self.prefs)
+                    try:
+                        parser.parse(url)
+                    except MNRASException:
+                        # this probably means we have a PDF directly from ADS
+                        # afterall just continue.
+                        # NOTE this case may be deprecated by resolving the URL
+                        pdf_url = resolved_url
+                    if parser.pdfURL is not None:
+                        pdf_url = parser.pdfURL
+                    else:
+                        pdf_url = resolved_url
                 else:
                     pdf_url = resolved_url
-            else:
-                pdf_url = resolved_url
 
-            # try locally
-            fd, pdf = tempfile.mkstemp(suffix='.pdf')
-            # test for HTTP auth need
-            try:
-                response = requests.get(pdf_url)
-                pdf_bytes = response.content
-                os.fdopen(fd, 'wb').write(pdf_bytes)
-            except Exception as err:
-                logging.debug('%s failed: %s' % (pdf_url, err))
-                # dummy file
-                open(pdf, 'w').write('dummy')
-
-            if 'PDF document' in filetype(pdf):
-                return pdf
-
-            # try in remote server
-            # you need to set SSH public key authentication for this to work!
-            elif 'ssh_user' in self.prefs and self.prefs['ssh_user'] \
-                    is not None:
+                # try locally
                 fd, pdf = tempfile.mkstemp(suffix='.pdf')
-                cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; ' \
-                    'wget -O adsbibdesk.pdf \\"%s\\"\"' % \
-                    (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf_url)
-                cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' \
-                    % (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
-                sp.Popen(cmd, shell=True,
-                         stdout=sp.PIPE, stderr=sp.PIPE).communicate()
-                sp.Popen(cmd2, shell=True,
-                         stdout=sp.PIPE, stderr=sp.PIPE).communicate()
+                # test for HTTP auth need
+                try:
+                    response = requests.get(pdf_url)
+                    pdf_bytes = response.content
+                    os.fdopen(fd, 'wb').write(pdf_bytes)
+                except Exception as err:
+                    logging.debug('%s failed: %s' % (pdf_url, err))
+                    # dummy file
+                    open(pdf, 'w').write('dummy')
+
                 if 'PDF document' in filetype(pdf):
                     return pdf
+
+                # try in remote server
+                # you need to set SSH public key authentication for this to work!
+                elif 'ssh_user' in self.prefs and self.prefs['ssh_user'] \
+                        is not None:
+                    fd, pdf = tempfile.mkstemp(suffix='.pdf')
+                    cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; ' \
+                        'wget -O adsbibdesk.pdf \\"%s\\"\"' % \
+                        (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf_url)
+                    cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' \
+                        % (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
+                    sp.Popen(cmd, shell=True,
+                             stdout=sp.PIPE, stderr=sp.PIPE).communicate()
+                    sp.Popen(cmd2, shell=True,
+                             stdout=sp.PIPE, stderr=sp.PIPE).communicate()
+                    if 'PDF document' in filetype(pdf):
+                        return pdf
 
         # arXiv
         if 'preprint' in self.links:
