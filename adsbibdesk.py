@@ -884,6 +884,7 @@ class Preferences(object):
                 "pdf_reader": None,
                 "ssh_user": None,
                 "ssh_server": None,
+                "ssh_port": 22,
                 "debug": False,
                 "log_path": os.path.expanduser("~/.adsbibdesk.log")}
 
@@ -932,9 +933,10 @@ download_pdf=%s
 # set these to use your account on a remote machine for fetching
 # (refereed) PDF's you have no access locally
 ssh_user=%s
-ssh_server=%s""" % (self.prefs['ads_mirror'], self.prefs['arxiv_mirror'],
+ssh_server=%s
+ssh_port=%s""" % (self.prefs['ads_mirror'], self.prefs['arxiv_mirror'],
                     self.prefs['download_pdf'], self.prefs['ssh_user'],
-                    self.prefs['ssh_server']))
+                    self.prefs['ssh_server'], self.prefs['ssh_port']))
 
     @property
     def adsmirrors(self):
@@ -1317,13 +1319,12 @@ class ADSHTMLParser(HTMLParser):
                 elif 'ssh_user' in self.prefs and self.prefs['ssh_user'] \
                         is not None:
                     fd, pdf = tempfile.mkstemp(suffix='.pdf')
-                    cmd = 'ssh %s@%s \"touch adsbibdesk.pdf; ' \
-                        'wget -O adsbibdesk.pdf \\"%s\\"\"' % \
-                        (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf_url)
-                    cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' \
-                        % (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
-                    print cmd
-                    print cmd2
+                    cmd = 'ssh -p %s %s@%s \"touch /tmp/adsbibdesk.pdf; ' \
+                        'wget -O /tmp/adsbibdesk.pdf \\"%s\\"\"' % \
+                        (self.prefs['ssh_port'],self.prefs['ssh_user'], \
+                        self.prefs['ssh_server'], pdf_url)
+                    cmd2 = 'scp -P %s -q %s@%s:/tmp/adsbibdesk.pdf %s' \
+                        % (self.prefs['ssh_port'],self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
                     sp.Popen(cmd, shell=True,
                              stdout=sp.PIPE, stderr=sp.PIPE).communicate()
                     sp.Popen(cmd2, shell=True,
