@@ -1079,7 +1079,7 @@ class ADSHTMLParser(HTMLParser):
         http://www.w3.org/Math/characters/byalpha.html
         """
         w3 = 'http://www.w3.org/Math/characters/byalpha.html'
-        mathml_page = requests.get(url)
+        mathml_page = requests.get(w3)
         mathml_text = mathml_page.text
         mathml = re.search('(?<=<pre>).+(?=</pre>)',
                            mathml_text, re.DOTALL).group()
@@ -1152,7 +1152,8 @@ class ADSHTMLParser(HTMLParser):
             # abstract
             try:
                 self.abstract = self.tag.strip().decode('utf-8')
-            except AttributeError:
+            #except AttributeError:
+            except Exception:
                 self.abstract = self.tag.strip()
             self.get_abs = False
             self.tag = ''
