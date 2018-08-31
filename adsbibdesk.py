@@ -96,7 +96,14 @@ except ImportError:
         webbrowser.open(url)
         sys.exit()
 
-from htmlentitydefs import name2codepoint
+
+
+try:
+    # For Python 3.0
+    from html.entities import name2codepoint
+except ImportError:
+    # Fall back to Python 2
+    from htmlentitydefs import name2codepoint
 
 try:
     from HTMLParser import HTMLParser
