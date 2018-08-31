@@ -52,6 +52,18 @@ except ImportError:
 # but OS X 10.5 only has 2.5
 import cgi
 #import urllib2
+
+
+try:
+    # For Python 3.0
+    from urllib.request import urlopen
+    from urllib.request import URLError
+except ImportError:
+    # Fall back to Python 2
+    from urllib2 import urlopen
+    from urllib2 import URLError
+    
+    
 try:
     from urlparse import urlparse, urlsplit, urlunsplit
 except ImportError:
@@ -638,20 +650,21 @@ def has_annotationss(f):
 
 def get_redirect(url):
     """Utility function to intercept final URL of HTTP redirection"""
-    if 'MNRAS' in url:
-        # MNRAS rejects requests from "non-browsers"
-        response = requests.get(url,
-                                headers={'User-Agent':
-                                         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'})
-    else:
-        response = requests.get(url)
-    response.raise_for_status()
-    return response.url
-    #try:
-    #    out = urllib2.urlopen(url)
-    #except urllib2.URLError as out:
-    #    pass
-    #return out.geturl()
+    
+    #     if 'MNRAS' in url:
+    #         # MNRAS rejects requests from "non-browsers"
+    #         response = requests.get(url,
+    #                                 headers={'User-Agent':
+    #                                          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'})
+    #     else:
+    #         response = requests.get(url)
+    #response.raise_for_status()
+    #return response.url
+    try:
+        out = urlopen(url)
+    except URLError as out:
+        pass
+    return out.geturl()
 
 
 class PDFDOIGrabber(object):
@@ -1309,6 +1322,8 @@ class ADSHTMLParser(HTMLParser):
                         (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf_url)
                     cmd2 = 'scp -q %s@%s:adsbibdesk.pdf %s' \
                         % (self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
+                    print cmd
+                    print cmd2
                     sp.Popen(cmd, shell=True,
                              stdout=sp.PIPE, stderr=sp.PIPE).communicate()
                     sp.Popen(cmd2, shell=True,
