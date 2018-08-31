@@ -1303,10 +1303,13 @@ class ADSHTMLParser(HTMLParser):
                 fd, pdf = tempfile.mkstemp(suffix='.pdf')
                 # test for HTTP auth need
                 try:
-                    response = requests.get(pdf_url)
-                    pdf_bytes = response.content
-                    os.fdopen(fd, 'wb').write(pdf_bytes)
-                except Exception as err:
+                    os.fdopen(fd, 'wb').write(urlopen(pdf_url).read())
+                except URLError as err:  # HTTPError derives from URLError
+                
+                #    response = requests.get(pdf_url)
+                #    pdf_bytes = response.content
+                #    os.fdopen(fd, 'wb').write(pdf_bytes)
+                #except Exception as err:
                     logging.debug('%s failed: %s' % (pdf_url, err))
                     # dummy file
                     open(pdf, 'w').write('dummy')
@@ -1325,8 +1328,10 @@ class ADSHTMLParser(HTMLParser):
                         self.prefs['ssh_server'], pdf_url)
                     cmd2 = 'scp -P %s -q %s@%s:/tmp/adsbibdesk.pdf %s' \
                         % (self.prefs['ssh_port'],self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
+                    logging.debug("%s" % cmd)
                     sp.Popen(cmd, shell=True,
                              stdout=sp.PIPE, stderr=sp.PIPE).communicate()
+                    logging.debug("%s" % cmd2)
                     sp.Popen(cmd2, shell=True,
                              stdout=sp.PIPE, stderr=sp.PIPE).communicate()
                     if 'PDF document' in filetype(pdf):
