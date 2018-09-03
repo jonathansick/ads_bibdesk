@@ -1330,9 +1330,12 @@ class ADSHTMLParser(HTMLParser):
                         is not None:
                     fd, pdf = tempfile.mkstemp(suffix='.pdf')
                     cmd = 'ssh -p %s %s@%s \"touch /tmp/adsbibdesk.pdf; ' \
-                        'wget -O /tmp/adsbibdesk.pdf \\"%s\\"\"' % \
+                        'wget -O /tmp/adsbibdesk.pdf ' \
+                        '--header=\\"Accept: text/html\\" ' \
+                        '--user-agent=\\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36\\" ' \
+                        '\\"%s\\"\"' % \
                         (self.prefs['ssh_port'],self.prefs['ssh_user'], \
-                        self.prefs['ssh_server'], pdf_url)
+                        self.prefs['ssh_server'],url)
                     cmd2 = 'scp -P %s -q %s@%s:/tmp/adsbibdesk.pdf %s' \
                         % (self.prefs['ssh_port'],self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
                     logging.debug("%s" % cmd)
