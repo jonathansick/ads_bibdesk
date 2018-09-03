@@ -670,7 +670,7 @@ def get_redirect(url):
     try:
         out = urlopen(url)
     except URLError as out:
-        pass
+        return out.geturl()
     return out.geturl()
 
 
