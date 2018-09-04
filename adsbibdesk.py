@@ -659,7 +659,7 @@ def has_annotationss(f):
 def get_redirect(url):
     """Utility function to intercept final URL of HTTP redirection"""
     """
-        EJOURANL:
+        EJOURNAL:
         ads-ejournal-link: nature;mnras-tmp;
             MNRAS:                    redirect to the HTML page link + "?error=cookie-not-supported..."
             NATURE:                   redirect to the HTML page link
@@ -1307,14 +1307,14 @@ class ADSHTMLParser(HTMLParser):
                 print("Could not download from URL {0} because of error {1}"
                       .format(url, ex))
 
-            if  resolved_url is not None:
+            if resolved_url is not None:
                 
                 logging.debug("Resolve article URL: %s" % resolved_url)
                 if "filetype=.pdf" in resolved_url:
                     # URL will directly resolve into a PDF
                     pdf_url = resolved_url
                 elif "EJOURNAL" in url:
-                    # Special case for EJOURANL URLs
+                    # Special case for EJOURNAL URLs
                     parser = MNRASParser(self.prefs)
                     try:
                         parser.parse(url)
