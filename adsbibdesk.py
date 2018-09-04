@@ -351,6 +351,8 @@ def process_token(article_token, prefs, bibdesk):
         n=1, cutoff=.7)
     kept_pdfs = []
     kept_fields = {}
+    kept_groups=[]
+    
     # first author is the same
     if  len(found)>0:
         if  found and difflib.SequenceMatcher(
@@ -363,6 +365,7 @@ def process_token(article_token, prefs, bibdesk):
                     None, abstract,
                     ads_parser.abstract).ratio() > .6:
                 pid = bibdesk.pid(found[0])
+                kept_groups=bibdesk.get_groups(pid)
                 # keep all fields for later comparison
                 # (especially rating + read bool)
                 kept_fields = dict((k, v) for k, v in
@@ -439,6 +442,9 @@ def process_token(article_token, prefs, bibdesk):
            bibdesk('cite key', pub).stringValue(),
            ads_parser.title)
 
+    # add back the static groups assignment
+    if kept_groups!=[]:
+        new_groups=bibdesk.add_groups(pub,kept_groups)
 
 def ingest_pdfs(options, args, prefs):
     """Workflow for attempting to ingest a directory of PDFs into BibDesk.
@@ -1084,6 +1090,48 @@ class BibDesk(object):
         self('delete', pid)
         return keptPDFs
 
+    def get_groups(self,pid):
+        """
+        Get names of the static groups
+        return a string list
+        """
+        cmd="""
+            tell first document of application "BibDesk"
+            set oldPub to ( get first publication whose id is "%s" ) 
+            set pGroups to ( get static groups whose publications contains oldPub ) 
+            set GroupNames to {}
+            repeat with aGroup in pGroups 
+                copy (name of aGroup) to the end of GroupNames
+            end repeat
+            return GroupNames 
+            end tell
+        """ % (pid)
+
+        output = self.app.initWithSource_(cmd).executeAndReturnError_(None)
+        output=output[0]
+        output = [output.descriptorAtIndex_(i + 1).stringValue()
+                  for i in range(output.numberOfItems())]
+        logging.debug("check static groups: pid: %s; static group: %s" % (pid,output))
+        return output
+    
+    def add_groups(self,pid,groups):
+        """
+        add the publication into static groups
+        """
+        str_groups=", ".join(groups)
+        cmd="""
+            tell first document of application "BibDesk"
+                set newPub to ( get first publication whose id is "%s" )
+                #set AppleScript's text item delimiters to return
+                repeat with agroup in { "%s" }
+                    set theGroup to get static group agroup
+                    add newPub to theGroup
+                end repeat
+            end tell
+        """ % (pid,str_groups)
+        output = self.app.initWithSource_(cmd).executeAndReturnError_(None)
+        new_groups=self.get_groups(pid)
+        return new_groups
 
 class ADSException(Exception):
     pass
