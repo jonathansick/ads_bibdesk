@@ -352,30 +352,31 @@ def process_token(article_token, prefs, bibdesk):
     kept_pdfs = []
     kept_fields = {}
     # first author is the same
-    if found and difflib.SequenceMatcher(
-            None,
-            bibdesk.authors(bibdesk.pid(found[0]))[0],
-            ads_parser.author[0]).ratio() > .6:
-        # further comparison on abstract
-        abstract = bibdesk('abstract', bibdesk.pid(found[0])).stringValue()
-        if not abstract or difflib.SequenceMatcher(
-                None, abstract,
-                ads_parser.abstract).ratio() > .6:
-            pid = bibdesk.pid(found[0])
-            # keep all fields for later comparison
-            # (especially rating + read bool)
-            kept_fields = dict((k, v) for k, v in
-                               zip(bibdesk('return name of fields', pid, True),
-                               bibdesk('return value of fields', pid, True))
-                               # Adscomment may be arXiv only
-                               if k != 'Adscomment')
-            # plus BibDesk annotation
-            kept_fields['BibDeskAnnotation'] = bibdesk(
-                'return its note', pid).stringValue()
-            kept_pdfs += bibdesk.safe_delete(pid)
-            notify('Duplicate publication removed',
-                   article_token, ads_parser.title)
-            bibdesk.refresh()
+    if  len(found)>0:
+        if  found and difflib.SequenceMatcher(
+                None,
+                bibdesk.authors(bibdesk.pid(found[0]))[0],
+                ads_parser.author[0]).ratio() > .6:
+            # further comparison on abstract
+            abstract = bibdesk('abstract', bibdesk.pid(found[0])).stringValue()
+            if not abstract or difflib.SequenceMatcher(
+                    None, abstract,
+                    ads_parser.abstract).ratio() > .6:
+                pid = bibdesk.pid(found[0])
+                # keep all fields for later comparison
+                # (especially rating + read bool)
+                kept_fields = dict((k, v) for k, v in
+                                   zip(bibdesk('return name of fields', pid, True),
+                                   bibdesk('return value of fields', pid, True))
+                                   # Adscomment may be arXiv only
+                                   if k != 'Adscomment')
+                # plus BibDesk annotation
+                kept_fields['BibDeskAnnotation'] = bibdesk(
+                    'return its note', pid).stringValue()
+                kept_pdfs += bibdesk.safe_delete(pid)
+                notify('Duplicate publication removed',
+                       article_token, ads_parser.title)
+                bibdesk.refresh()
 
     # FIXME refactor out this bibdesk import code?
     # add new entry
@@ -657,6 +658,16 @@ def has_annotationss(f):
 
 def get_redirect(url):
     """Utility function to intercept final URL of HTTP redirection"""
+    """
+        EJOURANL:
+        ads-ejournal-link: nature;mnras-tmp;
+            MNRAS:                    redirect to the HTML page link + "?error=cookie-not-supported..."
+            NATURE:                   redirect to the HTML page link
+        ads-article-link :
+            MNRAS w/  Paywall:        redirect to the HTML page link + '?redirectedFrom=PDF'
+            MNRAS w/o Paywall:        redirect to PDF
+                   
+    """
     
     #     if 'MNRAS' in url:
     #         # MNRAS rejects requests from "non-browsers"
@@ -669,9 +680,12 @@ def get_redirect(url):
     #return response.url
     try:
         out = urlopen(url)
+        red_url=out.geturl()
     except URLError as out:
-        return out.geturl()
-    return out.geturl()
+        red_url=out.geturl()
+    if  'nature.com' in red_url:
+        red_url=re.split('\?error=',red_url)[0]
+    return red_url
 
 
 class PDFDOIGrabber(object):
@@ -1274,8 +1288,17 @@ class ADSHTMLParser(HTMLParser):
                 return x
 
         # refereed
-        if 'article' in self.links:
-            url = self.links['article']
+        if 'article' in self.links or 'ejournal' in self.links:
+            
+            try:
+                # prefer "article":
+                #   most cases
+                url = self.links['article']
+            except Exception as ex:
+                # fall back to "ejournal":
+                #   mnras.tmp, nature, etc.
+                url = self.links['ejournal']
+                
             # Resolve URL
             try:
                 resolved_url = get_redirect(url)
@@ -1284,28 +1307,28 @@ class ADSHTMLParser(HTMLParser):
                 print("Could not download from URL {0} because of error {1}"
                       .format(url, ex))
 
-            if resolved_url is not None:
+            if  resolved_url is not None:
+                
                 logging.debug("Resolve article URL: %s" % resolved_url)
                 if "filetype=.pdf" in resolved_url:
                     # URL will directly resolve into a PDF
                     pdf_url = resolved_url
-                elif "MNRAS" in resolved_url:
-                    # Special case for MNRAS URLs to deal with iframe
+                elif "EJOURNAL" in url:
+                    # Special case for EJOURANL URLs
                     parser = MNRASParser(self.prefs)
                     try:
                         parser.parse(url)
                     except MNRASException:
-                        # this probably means we have a PDF directly from ADS
-                        # afterall just continue.
-                        # NOTE this case may be deprecated by resolving the URL
                         pdf_url = resolved_url
-                    if parser.pdfURL is not None:
-                        pdf_url = parser.pdfURL
+                    if parser.pdf_url is not None:
+                        pdf_url = parser.pdf_url
                     else:
                         pdf_url = resolved_url
+                    logging.debug("Resolve EJOURNAL PDF URL: %s" % pdf_url)
                 else:
                     pdf_url = resolved_url
-
+                
+                
                 # try locally
                 fd, pdf = tempfile.mkstemp(suffix='.pdf')
                 # test for HTTP auth need
@@ -1329,13 +1352,19 @@ class ADSHTMLParser(HTMLParser):
                 elif 'ssh_user' in self.prefs and self.prefs['ssh_user'] \
                         is not None:
                     fd, pdf = tempfile.mkstemp(suffix='.pdf')
+                    if "EJOURNAL" in url:
+                        # send the PDF link from MNRASparser
+                        url_remote=pdf_url
+                    else:
+                        # send the ADS article link
+                        url_remote=url
                     cmd = 'ssh -p %s %s@%s \"touch /tmp/adsbibdesk.pdf; ' \
                         'wget -O /tmp/adsbibdesk.pdf ' \
                         '--header=\\"Accept: text/html\\" ' \
                         '--user-agent=\\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36\\" ' \
                         '\\"%s\\"\"' % \
                         (self.prefs['ssh_port'],self.prefs['ssh_user'], \
-                        self.prefs['ssh_server'],url)
+                        self.prefs['ssh_server'],url_remote)
                     cmd2 = 'scp -P %s -q %s@%s:/tmp/adsbibdesk.pdf %s' \
                         % (self.prefs['ssh_port'],self.prefs['ssh_user'], self.prefs['ssh_server'], pdf)
                     logging.debug("%s" % cmd)
@@ -1521,10 +1550,12 @@ class MNRASException(Exception):
 
 class MNRASParser(HTMLParser):
     """Handle MNRAS refereed article PDFs.
-
+    
     Unlike other journals, the ADS "Full Refereed Journal Article" URL for a
     MNRAS article points to a PDF embedded in an iframe. This class extracts
     the PDF url given the ADS link.
+    
+    latest note: use this for all ejournal links
     """
     def __init__(self, prefs):
         HTMLParser.__init__(self)
@@ -1537,7 +1568,10 @@ class MNRASParser(HTMLParser):
         try:
             # Detect and decode page's charset
             logging.debug("Parsing MNRAS url %s" % url)
-            response = requests.get(url)
+            response = requests.get(url,
+                       headers={'User-Agent':
+                                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'})
             self.feed(response.text)
             #connection = urllib2.urlopen(url)
             #encoding = connection.headers.getparam('charset')
