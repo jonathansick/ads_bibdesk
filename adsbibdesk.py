@@ -1346,7 +1346,12 @@ class ADSHTMLParser(HTMLParser):
                 # fall back to "ejournal":
                 #   mnras.tmp, nature, etc.
                 url = self.links['ejournal']
-                
+            
+            if  'MNRAS' in url or 'Sci...' in url:
+                # always use the ejournal link for MNRAS/SCIENCE
+                # as the ARCTILE link is not always reliable.
+                url = self.links['ejournal']
+            
             # Resolve URL
             try:
                 resolved_url = get_redirect(url)
@@ -1372,6 +1377,10 @@ class ADSHTMLParser(HTMLParser):
                         pdf_url = parser.pdf_url
                     else:
                         pdf_url = resolved_url
+                        
+                    if  'www.annualreviews.org/doi' in pdf_url:
+                        # a workaround because 'citation_pdf_url' is not available.
+                        pdf_url=pdf_url.replace('.org/doi/','.org/doi/pdf/')
                     logging.debug("Resolve EJOURNAL PDF URL: %s" % pdf_url)
                 else:
                     pdf_url = resolved_url
@@ -1618,8 +1627,8 @@ class MNRASParser(HTMLParser):
             logging.debug("Parsing MNRAS url %s" % url)
             response = requests.get(url,
                        headers={'User-Agent':
-                                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
-                                (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'})
+                                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 \
+                                (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
             self.feed(response.text)
             #connection = urllib2.urlopen(url)
             #encoding = connection.headers.getparam('charset')
