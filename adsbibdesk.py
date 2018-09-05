@@ -58,11 +58,12 @@ try:
     # For Python 3.0
     from urllib.request import urlopen
     from urllib.request import URLError
+    from urllib.request import Request as urlreq
 except ImportError:
     # Fall back to Python 2
     from urllib2 import urlopen
     from urllib2 import URLError
-    
+    from urllib2 import Request as urlreq
     
 try:
     from urlparse import urlparse, urlsplit, urlunsplit
@@ -1094,6 +1095,7 @@ class BibDesk(object):
         """
         Get names of the static groups
         return a string list
+            output:      list        
         """
         cmd="""
             tell first document of application "BibDesk"
@@ -1117,18 +1119,24 @@ class BibDesk(object):
     def add_groups(self,pid,groups):
         """
         add the publication into static groups
+        note:
+            AppleScript lists are bracked by curly braces with items separate by commas
+            Each item is an alphanumeric label(?) or a string enclosed by double quotes or a list itself
+                e.g. { "group1", "groups" }
+            pid:         string
+            groups:      list
         """
-        str_groups=", ".join(groups)
+        as_groups=", ".join(['\"'+x+'\"' for x in groups])
         cmd="""
             tell first document of application "BibDesk"
                 set newPub to ( get first publication whose id is "%s" )
                 #set AppleScript's text item delimiters to return
-                repeat with agroup in { "%s" }
+                repeat with agroup in { %s }
                     set theGroup to get static group agroup
                     add newPub to theGroup
                 end repeat
             end tell
-        """ % (pid,str_groups)
+        """ % (pid,as_groups)
         output = self.app.initWithSource_(cmd).executeAndReturnError_(None)
         new_groups=self.get_groups(pid)
         return new_groups
@@ -1366,7 +1374,7 @@ class ADSHTMLParser(HTMLParser):
                 if "filetype=.pdf" in resolved_url:
                     # URL will directly resolve into a PDF
                     pdf_url = resolved_url
-                elif "EJOURNAL" in url:
+                elif "link_type=EJOURNAL" in url:
                     # Special case for EJOURNAL URLs
                     parser = MNRASParser(self.prefs)
                     try:
@@ -1390,7 +1398,12 @@ class ADSHTMLParser(HTMLParser):
                 fd, pdf = tempfile.mkstemp(suffix='.pdf')
                 # test for HTTP auth need
                 try:
-                    os.fdopen(fd, 'wb').write(urlopen(pdf_url).read())
+                    #os.fdopen(fd, 'wb').write(urlopen(pdf_url).read())
+                    response = requests.get(url,
+                            headers={'User-Agent':
+                                     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                     (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
+                    os.fdopen(fd, 'wb').write(response.content)
                 except URLError as err:  # HTTPError derives from URLError
                 
                 #    response = requests.get(pdf_url)
@@ -1627,7 +1640,7 @@ class MNRASParser(HTMLParser):
             logging.debug("Parsing MNRAS url %s" % url)
             response = requests.get(url,
                        headers={'User-Agent':
-                                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 \
+                                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
                                 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
             self.feed(response.text)
             #connection = urllib2.urlopen(url)
