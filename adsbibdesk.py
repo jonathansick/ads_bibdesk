@@ -401,8 +401,7 @@ def process_token(article_token, prefs, bibdesk):
     else:
         bibdesk(
             'set abstract to "%s"'
-            % ads_parser.abstract.replace('\\', r'\\').replace('"', r'\"'),
-            pub)
+            % ads_parser.abstract.replace('\\', r'\\').replace('"', r'\"').replace('}', ' ').replace('{', ' '),pub)
 
     doi = bibdesk('value of field "doi"', pub).stringValue()
     if pdf.endswith('.pdf'):
