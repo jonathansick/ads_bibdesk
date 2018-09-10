@@ -55,21 +55,30 @@ import cgi
 
 
 try:
-    # For Python 3.0
-    from urllib.request import urlopen
-    from urllib.request import URLError
-    from urllib.request import Request as urlreq
-except ImportError:
-    # Fall back to Python 2
+    # Python 2
     from urllib2 import urlopen
     from urllib2 import URLError
     from urllib2 import Request as urlreq
-    
-try:
     from urlparse import urlparse, urlsplit, urlunsplit
+    from htmlentitydefs import name2codepoint
+    from HTMLParser import HTMLParser
+    from HTMLParser import HTMLParseError    
 except ImportError:
+    # Python 3
+    from urllib.request import urlopen
+    from urllib.request import URLError
+    from urllib.request import Request as urlreq
     from urllib.parse import urlparse, urlsplit, urlunsplit
-
+    from html.entities import name2codepoint
+    from html.parser import HTMLParser
+    try:
+        from html.parser import HTMLParseError
+    except ImportError:  # Python 3.5+
+        class HTMLParseError(Exception):
+            pass
+    basestring = str
+    unichr = chr
+    
 import subprocess as sp
 try:
     import AppKit
@@ -97,23 +106,6 @@ except ImportError:
         webbrowser.open(url)
         sys.exit()
 
-
-
-try:
-    # For Python 3.0
-    from html.entities import name2codepoint
-except ImportError:
-    # Fall back to Python 2
-    from htmlentitydefs import name2codepoint
-
-try:
-    from HTMLParser import HTMLParser
-except ImportError:
-    try:
-        from html.parser import HTMLParseError
-    except ImportError:  # Python 3.5+
-        class HTMLParseError(Exception):
-            pass
 
 # default timeout for url calls
 socket.setdefaulttimeout(30)
@@ -272,7 +264,6 @@ def process_token(article_token, prefs, bibdesk):
     logging.debug("process_token found article token %s", article_token)
     connector = ADSConnector(article_token, prefs)
     ads_parser = ADSHTMLParser(prefs=prefs)
-
     if isinstance(connector.ads_read, basestring):
         # parse the ADS HTML file
         ads_parser.parse(connector.ads_read)
@@ -435,7 +426,7 @@ def process_token(article_token, prefs, bibdesk):
         'set its note to "%s"' % kept_fields.pop('BibDeskAnnotation', ''),
         pub)
     newFields = bibdesk('return name of fields', pub, True)
-    for k, v in kept_fields.iteritems():
+    for k, v in kept_fields.items():
         if k not in newFields:
             bibdesk('set value of field "%s" to "%s"' % (k, v), pub)
     notify('New publication added',
@@ -1384,7 +1375,6 @@ class ADSHTMLParser(HTMLParser):
                         pdf_url = parser.pdf_url
                     else:
                         pdf_url = resolved_url
-                        
                     if  'www.annualreviews.org/doi' in pdf_url:
                         # a workaround because 'citation_pdf_url' is not available.
                         pdf_url=pdf_url.replace('.org/doi/','.org/doi/pdf/')
@@ -1398,7 +1388,7 @@ class ADSHTMLParser(HTMLParser):
                 # test for HTTP auth need
                 try:
                     #os.fdopen(fd, 'wb').write(urlopen(pdf_url).read())
-                    response = requests.get(url,
+                    response = requests.get(pdf_url,
                             headers={'User-Agent':
                                      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
                                      (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
@@ -1608,7 +1598,7 @@ class ArXivParser(object):
                 '%s = {%s},' % (k, v)
                 for k, v in
                 sorted([(k, v.decode('utf-8') if hasattr(v, 'decode') else v)
-                        for k, v in self.__dict__.iteritems()
+                        for k, v in self.__dict__.items()
                         if k[0] in uppercase])]) +\
             '}'
 
@@ -1637,21 +1627,31 @@ class MNRASParser(HTMLParser):
         try:
             # Detect and decode page's charset
             logging.debug("Parsing MNRAS url %s" % url)
-            response = requests.get(url,
-                       headers={'User-Agent':
-                                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
-                                (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
-            self.feed(response.text)
-            #connection = urllib2.urlopen(url)
-            #encoding = connection.headers.getparam('charset')
-            #if encoding is not None:
-            #    logging.debug("Detected MNRAS encoding %s" % encoding)
-            #    page = connection.read().decode(encoding)
-            #    self.feed(page)
-            #else:
-            #    logging.debug("No detected MNRAS encoding")
-            #    page = connection.read()
-            #    self.feed(page)
+            #response = requests.get(url,
+            #           headers={'User-Agent':
+            #                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+            #                    (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
+            #self.feed(response.text)
+            
+            #reponse = urlopen(url)
+            #print(reponse.read())
+            #self.page(reponse.read())
+            
+            connection = urlopen(url)
+            if  hasattr(connection.headers,'getparam'):
+                # Python 2
+                encoding = connection.headers.getparam('charset')
+            else:
+                # Python 3
+                encoding = connection.headers.get_content_charset('charset')
+            if encoding is not None:
+                logging.debug("Detected MNRAS encoding %s" % encoding)
+                page = connection.read().decode(encoding)
+                self.feed(page)
+            else:
+                logging.debug("No detected MNRAS encoding")
+                page = connection.read()
+                self.feed(page)
         except Exception as err:
             logging.debug("MNRASParser timed out: %s", url)
             raise MNRASException(err)
