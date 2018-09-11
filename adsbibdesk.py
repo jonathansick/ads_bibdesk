@@ -650,7 +650,7 @@ def has_annotationss(f):
     return sp.Popen(
         "strings %s | grep  -E 'Contents[ ]{0,1}\('" % f,
         shell=True, stdout=sp.PIPE,
-        stderr=open('/dev/null', 'w')).stdout.read() != ''
+        stderr=open('/dev/null', 'w')).stdout.read() != b''     # b''!=u'' in Python 3
 
 
 def get_redirect(url):
@@ -1378,6 +1378,9 @@ class ADSHTMLParser(HTMLParser):
                     if  'www.annualreviews.org/doi' in pdf_url:
                         # a workaround because 'citation_pdf_url' is not available.
                         pdf_url=pdf_url.replace('.org/doi/','.org/doi/pdf/')
+                    if  'link.springer.com/book/' in pdf_url:
+                        # a workaround because 'citation_pdf_url' is not available.
+                        pdf_url=pdf_url.replace('book','content/pdf')+'.pdf'                        
                     logging.debug("Resolve EJOURNAL PDF URL: %s" % pdf_url)
                 else:
                     pdf_url = resolved_url
@@ -1626,16 +1629,16 @@ class MNRASParser(HTMLParser):
         """
         try:
             # Detect and decode page's charset
-            logging.debug("Parsing MNRAS url %s" % url)
+            logging.debug("Parsing EJOURNAL url %s" % url)
+            
+            #######
+            #   requests is not always reliable. (javascript page?)
+            ###
             #response = requests.get(url,
             #           headers={'User-Agent':
             #                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
             #                    (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
             #self.feed(response.text)
-            
-            #reponse = urlopen(url)
-            #print(reponse.read())
-            #self.page(reponse.read())
             
             connection = urlopen(url)
             if  hasattr(connection.headers,'getparam'):
@@ -1645,15 +1648,15 @@ class MNRASParser(HTMLParser):
                 # Python 3
                 encoding = connection.headers.get_content_charset('charset')
             if encoding is not None:
-                logging.debug("Detected MNRAS encoding %s" % encoding)
+                logging.debug("Detected EJOURNAL encoding %s" % encoding)
                 page = connection.read().decode(encoding)
                 self.feed(page)
             else:
-                logging.debug("No detected MNRAS encoding")
+                logging.debug("No detected EJOURNAL encoding")
                 page = connection.read()
                 self.feed(page)
         except Exception as err:
-            logging.debug("MNRASParser timed out: %s", url)
+            logging.debug("EJOURNALParser timed out: %s", url)
             raise MNRASException(err)
         except HTMLParseError as err:
             raise MNRASException(err)
