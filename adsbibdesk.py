@@ -1495,9 +1495,12 @@ class ADSHTMLParser(HTMLParser):
 
             # get arXiv PDF
             fd, pdf = tempfile.mkstemp(suffix='.pdf')
-            response = requests.get(url.replace('abs', 'pdf'))
+            response = requests.get(url.replace('abs', 'pdf'),
+                            headers={'User-Agent':
+                                     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                     (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
             os.fdopen(fd, 'wb').write(response.content)
-            response = requests.get(url.replace('abs', 'pdf'))
+            #response = requests.get(url.replace('abs', 'pdf'))
             logging.debug("PDF file is: {0}".format(filetype(pdf)))
             if 'PDF document' in filetype(pdf):
                 return pdf
@@ -1508,7 +1511,10 @@ class ADSHTMLParser(HTMLParser):
                     notify('Waiting for arXiv...', '',
                            'PDF is being generated, retrying in 30s...')
                     time.sleep(30)
-                    response = requests.get(url.replace('abs', 'pdf'))
+                    response = requests.get(url.replace('abs', 'pdf'),
+                                    headers={'User-Agent':
+                                             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                             (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
                     open(pdf, 'wb').write(response.content)
                 if 'PDF document' in filetype(pdf):
                     return pdf
