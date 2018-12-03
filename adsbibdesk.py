@@ -1611,7 +1611,6 @@ class ArXivParser(object):
 
     def __str__(self):
         import string
-        print self.__dict__.items()
         return '@article{%s,\n' % self.Eprint +\
             '\n'.join([
                 '%s = {%s},' % (k, v)
