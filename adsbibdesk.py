@@ -680,6 +680,8 @@ def get_redirect(url):
         red_url=out.geturl()
     except URLError as out:
         red_url=out.geturl()
+    #except socket.timeout as e:
+    #    red_url=url
     if  'nature.com' in red_url:
         red_url=re.split('\?error=',red_url)[0]
     return red_url
@@ -830,7 +832,11 @@ class ADSConnector(object):
         """
         try:
             # remove <head>...</head> - often broken HTML
-            response = requests.get(ads_url)
+            response = requests.get(ads_url,
+                            headers={'User-Agent':
+                                     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                     (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})                                    
+            
             response.raise_for_status()
             htmldata = response.text
             #htmldata = urllib2.urlopen(ads_url).read()
@@ -1177,7 +1183,10 @@ class ADSHTMLParser(HTMLParser):
     def parse_at_url(self, url):
         """Helper method to read data from URL, and passes on to parse()."""
         try:
-            response = requests.get(url)
+            response = requests.get(url,
+                            headers={'User-Agent':
+                                     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                     (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})  
             html_data = response.text
             #html_data = urllib2.urlopen(url).read()
         except Exception as ex:
@@ -1550,7 +1559,7 @@ class ArXivParser(object):
         self.url = 'http://export.arxiv.org/api/query?id_list=' + arxiv_id
         try:
             response = requests.get(self.url)
-            self.xml = ElementTree.fromstring(response.text)
+            self.xml = ElementTree.fromstring(response.content)
         except Exception as err:
             logging.debug("ArXivParser failed on URL: %s", self.url)
             raise ArXivException(err)
@@ -1602,11 +1611,12 @@ class ArXivParser(object):
 
     def __str__(self):
         import string
+        print self.__dict__.items()
         return '@article{%s,\n' % self.Eprint +\
             '\n'.join([
                 '%s = {%s},' % (k, v)
                 for k, v in
-                sorted([(k, v.decode('utf-8') if hasattr(v, 'decode') else v)
+                sorted([(k, v if hasattr(v, 'decode') else v)
                         for k, v in self.__dict__.items()
                         if k[0] in uppercase])]) +\
             '}'
