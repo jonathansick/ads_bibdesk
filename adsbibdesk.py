@@ -55,20 +55,30 @@ import cgi
 
 
 try:
-    # For Python 3.0
-    from urllib.request import urlopen
-    from urllib.request import URLError
-except ImportError:
-    # Fall back to Python 2
+    # Python 2
     from urllib2 import urlopen
     from urllib2 import URLError
-    
-    
-try:
+    from urllib2 import Request as urlreq
     from urlparse import urlparse, urlsplit, urlunsplit
+    from htmlentitydefs import name2codepoint
+    from HTMLParser import HTMLParser
+    from HTMLParser import HTMLParseError    
 except ImportError:
+    # Python 3
+    from urllib.request import urlopen
+    from urllib.request import URLError
+    from urllib.request import Request as urlreq
     from urllib.parse import urlparse, urlsplit, urlunsplit
-
+    from html.entities import name2codepoint
+    from html.parser import HTMLParser
+    try:
+        from html.parser import HTMLParseError
+    except ImportError:  # Python 3.5+
+        class HTMLParseError(Exception):
+            pass
+    basestring = str
+    unichr = chr
+    
 import subprocess as sp
 try:
     import AppKit
@@ -96,23 +106,6 @@ except ImportError:
         webbrowser.open(url)
         sys.exit()
 
-
-
-try:
-    # For Python 3.0
-    from html.entities import name2codepoint
-except ImportError:
-    # Fall back to Python 2
-    from htmlentitydefs import name2codepoint
-
-try:
-    from HTMLParser import HTMLParser
-except ImportError:
-    try:
-        from html.parser import HTMLParseError
-    except ImportError:  # Python 3.5+
-        class HTMLParseError(Exception):
-            pass
 
 # default timeout for url calls
 socket.setdefaulttimeout(30)
@@ -271,7 +264,6 @@ def process_token(article_token, prefs, bibdesk):
     logging.debug("process_token found article token %s", article_token)
     connector = ADSConnector(article_token, prefs)
     ads_parser = ADSHTMLParser(prefs=prefs)
-
     if isinstance(connector.ads_read, basestring):
         # parse the ADS HTML file
         ads_parser.parse(connector.ads_read)
@@ -400,8 +392,7 @@ def process_token(article_token, prefs, bibdesk):
     else:
         bibdesk(
             'set abstract to "%s"'
-            % ads_parser.abstract.replace('\\', r'\\').replace('"', r'\"'),
-            pub)
+            % ads_parser.abstract.replace('\\', r'\\').replace('"', r'\"').replace('}', ' ').replace('{', ' '),pub)
 
     doi = bibdesk('value of field "doi"', pub).stringValue()
     if pdf.endswith('.pdf'):
@@ -435,7 +426,7 @@ def process_token(article_token, prefs, bibdesk):
         'set its note to "%s"' % kept_fields.pop('BibDeskAnnotation', ''),
         pub)
     newFields = bibdesk('return name of fields', pub, True)
-    for k, v in kept_fields.iteritems():
+    for k, v in kept_fields.items():
         if k not in newFields:
             bibdesk('set value of field "%s" to "%s"' % (k, v), pub)
     notify('New publication added',
@@ -659,7 +650,7 @@ def has_annotationss(f):
     return sp.Popen(
         "strings %s | grep  -E 'Contents[ ]{0,1}\('" % f,
         shell=True, stdout=sp.PIPE,
-        stderr=open('/dev/null', 'w')).stdout.read() != ''
+        stderr=open('/dev/null', 'w')).stdout.read() != b''     # b''!=u'' in Python 3
 
 
 def get_redirect(url):
@@ -839,7 +830,11 @@ class ADSConnector(object):
         """
         try:
             # remove <head>...</head> - often broken HTML
-            response = requests.get(ads_url)
+            response = requests.get(ads_url,
+                            headers={'User-Agent':
+                                     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                     (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})                                    
+            
             response.raise_for_status()
             htmldata = response.text
             #htmldata = urllib2.urlopen(ads_url).read()
@@ -1094,6 +1089,7 @@ class BibDesk(object):
         """
         Get names of the static groups
         return a string list
+            output:      list        
         """
         cmd="""
             tell first document of application "BibDesk"
@@ -1117,18 +1113,24 @@ class BibDesk(object):
     def add_groups(self,pid,groups):
         """
         add the publication into static groups
+        note:
+            AppleScript lists are bracked by curly braces with items separate by commas
+            Each item is an alphanumeric label(?) or a string enclosed by double quotes or a list itself
+                e.g. { "group1", "groups" }
+            pid:         string
+            groups:      list
         """
-        str_groups=", ".join(groups)
+        as_groups=", ".join(['\"'+x+'\"' for x in groups])
         cmd="""
             tell first document of application "BibDesk"
                 set newPub to ( get first publication whose id is "%s" )
                 #set AppleScript's text item delimiters to return
-                repeat with agroup in { "%s" }
+                repeat with agroup in { %s }
                     set theGroup to get static group agroup
                     add newPub to theGroup
                 end repeat
             end tell
-        """ % (pid,str_groups)
+        """ % (pid,as_groups)
         output = self.app.initWithSource_(cmd).executeAndReturnError_(None)
         new_groups=self.get_groups(pid)
         return new_groups
@@ -1179,7 +1181,10 @@ class ADSHTMLParser(HTMLParser):
     def parse_at_url(self, url):
         """Helper method to read data from URL, and passes on to parse()."""
         try:
-            response = requests.get(url)
+            response = requests.get(url,
+                            headers={'User-Agent':
+                                     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                     (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})  
             html_data = response.text
             #html_data = urllib2.urlopen(url).read()
         except Exception as ex:
@@ -1346,7 +1351,12 @@ class ADSHTMLParser(HTMLParser):
                 # fall back to "ejournal":
                 #   mnras.tmp, nature, etc.
                 url = self.links['ejournal']
-                
+            
+            if  'MNRAS' in url or 'Sci...' in url:
+                # always use the ejournal link for MNRAS/SCIENCE
+                # as the ARCTILE link is not always reliable.
+                url = self.links['ejournal']
+            
             # Resolve URL
             try:
                 resolved_url = get_redirect(url)
@@ -1361,7 +1371,7 @@ class ADSHTMLParser(HTMLParser):
                 if "filetype=.pdf" in resolved_url:
                     # URL will directly resolve into a PDF
                     pdf_url = resolved_url
-                elif "EJOURNAL" in url:
+                elif "link_type=EJOURNAL" in url:
                     # Special case for EJOURNAL URLs
                     parser = MNRASParser(self.prefs)
                     try:
@@ -1372,6 +1382,12 @@ class ADSHTMLParser(HTMLParser):
                         pdf_url = parser.pdf_url
                     else:
                         pdf_url = resolved_url
+                    if  'www.annualreviews.org/doi' in pdf_url:
+                        # a workaround because 'citation_pdf_url' is not available.
+                        pdf_url=pdf_url.replace('.org/doi/','.org/doi/pdf/')
+                    if  'link.springer.com/book/' in pdf_url:
+                        # a workaround because 'citation_pdf_url' is not available.
+                        pdf_url=pdf_url.replace('book','content/pdf')+'.pdf'                        
                     logging.debug("Resolve EJOURNAL PDF URL: %s" % pdf_url)
                 else:
                     pdf_url = resolved_url
@@ -1381,7 +1397,12 @@ class ADSHTMLParser(HTMLParser):
                 fd, pdf = tempfile.mkstemp(suffix='.pdf')
                 # test for HTTP auth need
                 try:
-                    os.fdopen(fd, 'wb').write(urlopen(pdf_url).read())
+                    #os.fdopen(fd, 'wb').write(urlopen(pdf_url).read())
+                    response = requests.get(pdf_url,
+                            headers={'User-Agent':
+                                     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                     (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
+                    os.fdopen(fd, 'wb').write(response.content)
                 except URLError as err:  # HTTPError derives from URLError
                 
                 #    response = requests.get(pdf_url)
@@ -1481,9 +1502,12 @@ class ADSHTMLParser(HTMLParser):
 
             # get arXiv PDF
             fd, pdf = tempfile.mkstemp(suffix='.pdf')
-            response = requests.get(url.replace('abs', 'pdf'))
+            response = requests.get(url.replace('abs', 'pdf'),
+                            headers={'User-Agent':
+                                     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                     (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
             os.fdopen(fd, 'wb').write(response.content)
-            response = requests.get(url.replace('abs', 'pdf'))
+            #response = requests.get(url.replace('abs', 'pdf'))
             logging.debug("PDF file is: {0}".format(filetype(pdf)))
             if 'PDF document' in filetype(pdf):
                 return pdf
@@ -1494,7 +1518,10 @@ class ADSHTMLParser(HTMLParser):
                     notify('Waiting for arXiv...', '',
                            'PDF is being generated, retrying in 30s...')
                     time.sleep(30)
-                    response = requests.get(url.replace('abs', 'pdf'))
+                    response = requests.get(url.replace('abs', 'pdf'),
+                                    headers={'User-Agent':
+                                             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+                                             (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
                     open(pdf, 'wb').write(response.content)
                 if 'PDF document' in filetype(pdf):
                     return pdf
@@ -1530,7 +1557,7 @@ class ArXivParser(object):
         self.url = 'http://export.arxiv.org/api/query?id_list=' + arxiv_id
         try:
             response = requests.get(self.url)
-            self.xml = ElementTree.fromstring(response.text)
+            self.xml = ElementTree.fromstring(response.content)
         except Exception as err:
             logging.debug("ArXivParser failed on URL: %s", self.url)
             raise ArXivException(err)
@@ -1586,8 +1613,8 @@ class ArXivParser(object):
             '\n'.join([
                 '%s = {%s},' % (k, v)
                 for k, v in
-                sorted([(k, v.decode('utf-8') if hasattr(v, 'decode') else v)
-                        for k, v in self.__dict__.iteritems()
+                sorted([(k, v if hasattr(v, 'decode') else v)
+                        for k, v in self.__dict__.items()
                         if k[0] in uppercase])]) +\
             '}'
 
@@ -1615,24 +1642,34 @@ class MNRASParser(HTMLParser):
         """
         try:
             # Detect and decode page's charset
-            logging.debug("Parsing MNRAS url %s" % url)
-            response = requests.get(url,
-                       headers={'User-Agent':
-                                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
-                                (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'})
-            self.feed(response.text)
-            #connection = urllib2.urlopen(url)
-            #encoding = connection.headers.getparam('charset')
-            #if encoding is not None:
-            #    logging.debug("Detected MNRAS encoding %s" % encoding)
-            #    page = connection.read().decode(encoding)
-            #    self.feed(page)
-            #else:
-            #    logging.debug("No detected MNRAS encoding")
-            #    page = connection.read()
-            #    self.feed(page)
+            logging.debug("Parsing EJOURNAL url %s" % url)
+            
+            #######
+            #   requests is not always reliable. (javascript page?)
+            ###
+            #response = requests.get(url,
+            #           headers={'User-Agent':
+            #                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/537.36 \
+            #                    (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36'})
+            #self.feed(response.text)
+            
+            connection = urlopen(url)
+            if  hasattr(connection.headers,'getparam'):
+                # Python 2
+                encoding = connection.headers.getparam('charset')
+            else:
+                # Python 3
+                encoding = connection.headers.get_content_charset('charset')
+            if encoding is not None:
+                logging.debug("Detected EJOURNAL encoding %s" % encoding)
+                page = connection.read().decode(encoding)
+                self.feed(page)
+            else:
+                logging.debug("No detected EJOURNAL encoding")
+                page = connection.read()
+                self.feed(page)
         except Exception as err:
-            logging.debug("MNRASParser timed out: %s", url)
+            logging.debug("EJOURNALParser timed out: %s", url)
             raise MNRASException(err)
         except HTMLParseError as err:
             raise MNRASException(err)
