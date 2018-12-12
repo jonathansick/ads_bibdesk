@@ -680,8 +680,6 @@ def get_redirect(url):
         red_url=out.geturl()
     except URLError as out:
         red_url=out.geturl()
-    #except socket.timeout as e:
-    #    red_url=url
     if  'nature.com' in red_url:
         red_url=re.split('\?error=',red_url)[0]
     return red_url
