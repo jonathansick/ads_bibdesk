@@ -1,3 +1,24 @@
+Farewell ADS to BibDesk; welcome to ads2bibdesk!
+================================================
+
+If you're a current user of ADS to BibDesk, you will need to migrate to ads2bibdesk_, a new project by Rui Xue.
+ads2bibdesk_ uses the ADS API and is compatible with modern versions of macOS and BibDesk.
+
+To the community, thanks for using ADS to BibDesk and for contributing to it.
+ADS to BibDesk dates back to 2007 and was my first Python project.
+Over the years, I've gone from making science to making the infrastructure for science, which might account for why this bibliography tool hasn't seen much activity from me.
+I'm grateful, though, that the open source astronomy community has taken the ideas around streamlined bibliography capture and created new tools to make everyone more productive.
+I'm also grateful to ADS for their critical contributions to astronomy.
+
+Today I'm archiving ADS to BibDesk.
+Head on over to ads2bibdesk_ and try it out.
+
+Cheers,
+Jonathan
+
+.. _ads2bibdesk: https://github.com/r-xue/ads2bibdesk
+
+
 ADS to BibDesk
 ==============
 
